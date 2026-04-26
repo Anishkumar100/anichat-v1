@@ -1,0 +1,787 @@
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@100..900&display=swap');
+@import "tailwindcss";
+
+* {
+  font-family: "Outfit", "sans-serif";
+}
+
+::-webkit-scrollbar {
+  display: none;
+}
+
+/* 🦋 Butterflies moving in straight lines */
+@keyframes float-line {
+  0% {
+    transform: translateX(0) translateY(0) rotate(0deg);
+    opacity: 0.2;
+  }
+
+  50% {
+    transform: translateX(50vw) translateY(-10px) rotate(10deg);
+    opacity: 0.4;
+  }
+
+  100% {
+    transform: translateX(100vw) translateY(0) rotate(-5deg);
+    opacity: 0.2;
+  }
+}
+
+/* 🦋 Butterflies circling in place */
+@keyframes float-circle {
+  0% {
+    transform: translate(0, 0) rotate(0deg);
+  }
+
+  25% {
+    transform: translate(10px, -10px) rotate(15deg);
+  }
+
+  50% {
+    transform: translate(20px, 0px) rotate(30deg);
+  }
+
+  75% {
+    transform: translate(10px, 10px) rotate(15deg);
+  }
+
+  100% {
+    transform: translate(0, 0) rotate(0deg);
+  }
+}
+
+/* 🌀 Butterflies revolving in an elliptical orbit while moving right */
+@keyframes float-revolve {
+  0% {
+    transform: translateX(0) translateY(0) rotate(0deg);
+    opacity: 0.15;
+  }
+
+  25% {
+    transform: translateX(25vw) translateY(-40px) rotate(10deg);
+    opacity: 0.3;
+  }
+
+  50% {
+    transform: translateX(50vw) translateY(20px) rotate(20deg);
+    opacity: 0.4;
+  }
+
+  75% {
+    transform: translateX(75vw) translateY(-10px) rotate(15deg);
+    opacity: 0.3;
+  }
+
+  100% {
+    transform: translateX(100vw) translateY(0) rotate(0deg);
+    opacity: 0.15;
+  }
+}
+
+/* 🌫️ Aurora background glow animation */
+@keyframes aurora {
+
+  0%,
+  100% {
+    transform: translateX(0%) translateY(0%) scale(1);
+    opacity: 0.05;
+  }
+
+  50% {
+    transform: translateX(10%) translateY(-10%) scale(1.2);
+    opacity: 0.1;
+  }
+}
+
+/* ✨ Sparkles floating gently */
+@keyframes sparkle {
+  0% {
+    opacity: 0;
+    transform: scale(0.4);
+  }
+
+  50% {
+    opacity: 0.8;
+    transform: scale(1);
+  }
+
+  100% {
+    opacity: 0;
+    transform: scale(0.4);
+  }
+}
+
+/* 💫 Subtle glowing rings */
+@keyframes soft-pulse {
+  0% {
+    transform: scale(1);
+    opacity: 0.05;
+  }
+
+  50% {
+    transform: scale(1.1);
+    opacity: 0.1;
+  }
+
+  100% {
+    transform: scale(1);
+    opacity: 0.05;
+  }
+}
+
+/* ✅ Tailwind utility layer */
+@layer utilities {
+  .animate-float-line {
+    animation: float-line 16s linear infinite;
+  }
+
+  .animate-float-circle {
+    animation: float-circle 10s ease-in-out infinite;
+  }
+
+  .animate-float-revolve {
+    animation: float-revolve 18s linear infinite;
+  }
+
+  .animate-aurora {
+    animation: aurora 18s ease-in-out infinite;
+  }
+
+  .animate-sparkle {
+    animation: sparkle 5s ease-in-out infinite;
+  }
+
+  .animate-soft-pulse {
+    animation: soft-pulse 8s ease-in-out infinite;
+  }
+
+  /* 🎨 Butterfly color variants - More professional palette */
+  .butterfly-blue {
+    @apply text-sky-300/50;
+  }
+
+  .butterfly-indigo {
+    @apply text-indigo-300/30;
+  }
+
+  .butterfly-cyan {
+    @apply text-cyan-200;
+  }
+
+  .butterfly-pink {
+    @apply text-pink-300/45;
+  }
+
+  .butterfly-purple {
+    @apply text-purple-300/45;
+  }
+
+}
+
+
+
+/* Login Page Animation*/
+
+/* 💫 Shooting Star Animation */
+
+@keyframes straightShootingStar {
+  0% {
+    transform: translate(0, 0) rotate(45deg);
+    opacity: 0;
+  }
+  10% {
+    opacity: 1;
+  }
+  100% {
+    transform: translate(100vw, 100vh) rotate(45deg);
+    opacity: 0;
+  }
+}
+
+.shooting-star {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  animation: straightShootingStar linear infinite;
+  pointer-events: none;
+  transform: rotate(45deg);
+  z-index: 2;
+}
+
+/* 🌠 Tail with radiant streak and trail memory */
+.star-tail {
+  width: 200px;
+  height: 2px;
+  background: linear-gradient(
+    to left,
+    rgba(255, 255, 255, 0),
+    rgba(255, 255, 255, 0.2),
+    rgba(255, 255, 255, 0.5),
+    rgba(255, 255, 255, 0.9)
+  );
+  border-radius: 999px;
+  filter: blur(2px);
+  opacity: 0.85;
+  transform-origin: left;
+  box-shadow:
+    0 0 4px rgba(255, 255, 255, 0.4),
+    0 0 12px rgba(168, 139, 250, 0.2),
+    0 0 20px rgba(192, 132, 252, 0.1);
+}
+
+/* 🌟 Glowing Head of Star */
+.star-head {
+  width: 12px;
+  height: 12px;
+  background: radial-gradient(circle, white 30%, #c084fc 60%, transparent 90%);
+  border-radius: 50%;
+  box-shadow:
+    0 0 8px white,
+    0 0 14px #a78bfa,
+    0 0 30px #c084fc,
+    0 0 50px #c084fc;
+  animation: flickerStar 1.5s ease-in-out infinite alternate;
+  z-index: 3;
+}
+
+/* ✨ Flicker Pulse for realism */
+@keyframes flickerStar {
+  0% { transform: scale(1); opacity: 0.9; }
+  100% { transform: scale(1.2); opacity: 1; }
+}
+
+/* 🌈 Tail shimmer sparkle */
+.shooting-star:nth-child(even) .star-tail {
+  animation: tailFlicker 0.4s ease-in-out infinite alternate;
+}
+
+@keyframes tailFlicker {
+  0% {
+    opacity: 0.5;
+    filter: blur(1px);
+  }
+  100% {
+    opacity: 0.9;
+    filter: blur(2px);
+  }
+}
+
+/* ✨ Floating sparkles everywhere */
+@keyframes sparklePulse {
+  0%, 100% {
+    opacity: 0.15;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(2);
+  }
+}
+
+.star-sparkle {
+  position: absolute;
+  width: 2px;
+  height: 2px;
+  background: white;
+  border-radius: 50%;
+  animation: sparklePulse 3.5s ease-in-out infinite;
+  filter: blur(1px);
+  opacity: 0.25;
+  z-index: 1;
+}
+
+/* 🌌 Deep background glow */
+.starry-bg-blur {
+  position: absolute;
+  top: 30%;
+  left: 50%;
+  width: 70vw;
+  height: 70vw;
+  background: radial-gradient(circle, rgba(147, 51, 234, 0.09), transparent 75%);
+  transform: translate(-50%, -50%);
+  filter: blur(100px);
+  z-index: 0;
+  pointer-events: none;
+}
+
+
+/*Edit profile page*/
+
+@keyframes starFlicker {
+  0%, 100% {
+    opacity: 0.1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.2);
+  }
+}
+
+.star-flicker {
+  background: white;
+  border-radius: 50%;
+  animation: starFlicker infinite ease-in-out;
+  filter: blur(1px);
+  opacity: 0.25;
+  z-index: 0;
+  will-change: transform, opacity;
+}
+
+.stars-layer {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  pointer-events: none;
+  z-index: 0;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-in {
+  animation: fadeIn 1s ease-out both;
+}
+
+
+/* ================================================================
+   NEW ADDITIONS — All original styles above are UNCHANGED
+================================================================ */
+
+/* ──────────────────────────────────────────────────────────────────
+   ENHANCED ASTEROID / METEOR SHOWER  (Login Page)
+   ────────────────────────────────────────────────────────────────── */
+
+/*
+ * Three depth layers — near / mid / far
+ * Near:  bright, fast, thick tail, large head
+ * Mid:   medium brightness and size
+ * Far:   faint, slow, thin tail, tiny head
+ */
+
+/* Near meteors fall with a slight natural arc */
+@keyframes meteorNear {
+  0%   { transform: translate(0, 0)                    rotate(var(--ang, 45deg)); opacity: 0; }
+  4%   { opacity: 1; }
+  96%  { opacity: 0.9; }
+  100% { transform: translate(110vw, 110vh)             rotate(var(--ang, 45deg)); opacity: 0; }
+}
+
+/* Mid meteors — gentler arc, slight wobble */
+@keyframes meteorMid {
+  0%   { transform: translate(0, 0)                    rotate(var(--ang, 45deg)); opacity: 0; }
+  6%   { opacity: 0.75; }
+  94%  { opacity: 0.6; }
+  100% { transform: translate(105vw, 105vh)             rotate(var(--ang, 45deg)); opacity: 0; }
+}
+
+/* Far meteors — slow, faint */
+@keyframes meteorFar {
+  0%   { transform: translate(0, 0)                    rotate(var(--ang, 45deg)); opacity: 0; }
+  8%   { opacity: 0.35; }
+  92%  { opacity: 0.25; }
+  100% { transform: translate(95vw, 95vh)              rotate(var(--ang, 45deg)); opacity: 0; }
+}
+
+/* Head flare — gentle breathe */
+@keyframes headFlare {
+  0%,100% { box-shadow: 0 0 6px 1px white, 0 0 12px 3px #a78bfa, 0 0 22px 6px #c084fc; transform: scale(1);   }
+  50%     { box-shadow: 0 0 10px 3px white, 0 0 20px 7px #a78bfa, 0 0 36px 12px #c084fc; transform: scale(1.25); }
+}
+
+/* Debris trail — tiny sparks that fade behind each meteor */
+@keyframes debrisFade {
+  0%   { opacity: 0.8; transform: scale(1); }
+  100% { opacity: 0;   transform: scale(0); }
+}
+
+/* Comet-class — a slow, majestic large meteor */
+@keyframes cometFall {
+  0%   { transform: translate(0,0) rotate(var(--ang,38deg)); opacity: 0; }
+  3%   { opacity: 1; }
+  97%  { opacity: 0.85; }
+  100% { transform: translate(108vw, 108vh) rotate(var(--ang,38deg)); opacity: 0; }
+}
+
+/* Utility classes for the three layers */
+.meteor-near {
+  animation: meteorNear linear infinite;
+  --ang: 45deg;
+}
+.meteor-mid {
+  animation: meteorMid linear infinite;
+  --ang: 45deg;
+}
+.meteor-far {
+  animation: meteorFar linear infinite;
+  --ang: 45deg;
+}
+.meteor-comet {
+  animation: cometFall linear infinite;
+  --ang: 38deg;
+}
+
+/* Enhanced head — replaces the original .star-head with identical class name
+   but with the breathing flare animation layered on top */
+.star-head-enhanced {
+  width: 12px;
+  height: 12px;
+  background: radial-gradient(circle, white 25%, #c084fc 55%, transparent 85%);
+  border-radius: 50%;
+  animation: headFlare 1.8s ease-in-out infinite alternate;
+  z-index: 3;
+  flex-shrink: 0;
+}
+
+/* Larger comet head */
+.star-head-comet {
+  width: 18px;
+  height: 18px;
+  background: radial-gradient(circle, white 20%, #93c5fd 45%, #c084fc 65%, transparent 90%);
+  border-radius: 50%;
+  animation: headFlare 2.4s ease-in-out infinite alternate;
+  z-index: 3;
+  flex-shrink: 0;
+  box-shadow: 0 0 12px 4px white, 0 0 24px 8px #93c5fd, 0 0 40px 14px #c084fc;
+}
+
+/* Debris dot trailing behind meteors */
+.meteor-debris {
+  position: absolute;
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: white;
+  filter: blur(1px);
+  animation: debrisFade linear forwards;
+}
+
+/* ──────────────────────────────────────────────────────────────────
+   ENHANCED BUTTERFLY / FLOATING ANIMATION  (Home Empty State)
+   ────────────────────────────────────────────────────────────────── */
+
+/* Wing-flap: gentle Y-scale pulse that mimics real wing motion */
+@keyframes wingFlap {
+  0%, 100% { transform: scaleY(1)   scaleX(1); }
+  25%       { transform: scaleY(0.7) scaleX(1.05); }
+  50%       { transform: scaleY(1)   scaleX(1); }
+  75%       { transform: scaleY(0.75) scaleX(1.04); }
+}
+
+/* Drift path 1 — gentle S-curve across the screen */
+@keyframes driftPath1 {
+  0%   { transform: translate(0vw,  0px)   rotate(0deg);  opacity: 0; }
+  5%   { opacity: 1; }
+  25%  { transform: translate(25vw, -30px) rotate(8deg);  opacity: 0.7; }
+  50%  { transform: translate(50vw,  18px) rotate(-4deg); opacity: 0.9; }
+  75%  { transform: translate(75vw, -12px) rotate(6deg);  opacity: 0.7; }
+  95%  { opacity: 0.3; }
+  100% { transform: translate(105vw, 0px)  rotate(0deg);  opacity: 0; }
+}
+
+/* Drift path 2 — floats upward in a lazy arc */
+@keyframes driftPath2 {
+  0%   { transform: translate(0vw,   0px)  rotate(0deg);  opacity: 0; }
+  5%   { opacity: 1; }
+  30%  { transform: translate(30vw, -50px) rotate(-10deg); opacity: 0.8; }
+  60%  { transform: translate(60vw, -20px) rotate(5deg);  opacity: 0.9; }
+  90%  { transform: translate(90vw, -60px) rotate(-8deg); opacity: 0.4; }
+  100% { transform: translate(108vw,-30px) rotate(0deg);  opacity: 0; }
+}
+
+/* Drift path 3 — undulates like a wave */
+@keyframes driftPath3 {
+  0%   { transform: translate(-10vw, 0px)   rotate(0deg); opacity: 0; }
+  5%   { opacity: 1; }
+  20%  { transform: translate(15vw,  25px)  rotate(12deg); }
+  40%  { transform: translate(35vw, -20px)  rotate(-6deg); opacity: 0.85; }
+  60%  { transform: translate(60vw,  30px)  rotate(10deg); }
+  80%  { transform: translate(85vw, -15px)  rotate(-4deg); opacity: 0.6; }
+  95%  { opacity: 0.2; }
+  100% { transform: translate(110vw,  0px)  rotate(0deg);  opacity: 0; }
+}
+
+/* Hover/bob for butterflies that circle in place */
+@keyframes gentleBob {
+  0%,100% { transform: translateY(0px)   rotate(0deg); }
+  25%     { transform: translateY(-8px)  rotate(4deg); }
+  50%     { transform: translateY(-2px)  rotate(-2deg); }
+  75%     { transform: translateY(-10px) rotate(3deg); }
+}
+
+/* Pollen/dust motes */
+@keyframes dustFloat {
+  0%   { transform: translate(0, 0)     scale(1);    opacity: 0; }
+  15%  { opacity: 0.6; }
+  50%  { transform: translate(8px,-20px) scale(1.2); opacity: 0.8; }
+  85%  { opacity: 0.3; }
+  100% { transform: translate(-4px,-40px) scale(0.7); opacity: 0; }
+}
+
+/* Aurora glow — more dynamic than before */
+@keyframes aurora-enhanced {
+  0%   { transform: translateX(0%)   translateY(0%)   scale(1);    opacity: 0.04; }
+  20%  { transform: translateX(6%)   translateY(-8%)  scale(1.1);  opacity: 0.09; }
+  50%  { transform: translateX(12%)  translateY(-14%) scale(1.25); opacity: 0.13; }
+  75%  { transform: translateX(-4%)  translateY(-6%)  scale(1.08); opacity: 0.07; }
+  100% { transform: translateX(0%)   translateY(0%)   scale(1);    opacity: 0.04; }
+}
+
+/* Utility animation classes */
+.animate-drift-1   { animation: driftPath1  linear infinite; }
+.animate-drift-2   { animation: driftPath2  linear infinite; }
+.animate-drift-3   { animation: driftPath3  linear infinite; }
+.animate-bob       { animation: gentleBob   ease-in-out infinite; }
+.animate-wing-flap { animation: wingFlap    ease-in-out infinite; }
+.animate-dust      { animation: dustFloat   ease-in-out infinite; }
+.animate-aurora-enhanced { animation: aurora-enhanced ease-in-out infinite; }
+
+/* ──────────────────────────────────────────────────────────────────
+   MESSAGE ACTIONS & EMOJI PICKER  (Chat features)
+   ────────────────────────────────────────────────────────────────── */
+
+@keyframes popIn {
+  0%   { opacity: 0; transform: scale(0.7) translateY(4px); }
+  70%  { transform: scale(1.05) translateY(-1px); }
+  100% { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+@keyframes reactionBounce {
+  0%   { opacity: 0; transform: scale(0) rotate(-10deg); }
+  60%  { transform: scale(1.2) rotate(4deg); }
+  100% { opacity: 1; transform: scale(1) rotate(0deg); }
+}
+
+/* Floating action bar that appears on message hover */
+.msg-action-bar {
+  position: absolute;
+  display: flex;
+  gap: 2px;
+  background: rgba(30, 27, 60, 0.95);
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 10px;
+  padding: 3px 5px;
+  z-index: 30;
+  animation: popIn 0.18s ease-out both;
+  backdrop-filter: blur(12px);
+  box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+  white-space: nowrap;
+}
+
+.msg-action-btn {
+  width: 26px;
+  height: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 7px;
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: background 0.12s ease, transform 0.12s ease;
+  user-select: none;
+}
+.msg-action-btn:hover           { background: rgba(255,255,255,0.1); transform: scale(1.18); }
+.msg-action-btn.delete:hover    { background: rgba(239,68,68,0.18); }
+
+/* Emoji picker floating panel */
+.emoji-picker-panel {
+  position: absolute;
+  display: flex;
+  gap: 2px;
+  padding: 6px 8px;
+  background: rgba(22, 19, 52, 0.97);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 14px;
+  z-index: 40;
+  animation: popIn 0.2s ease-out both;
+  backdrop-filter: blur(16px);
+  box-shadow: 0 8px 32px rgba(0,0,0,0.5), 0 0 0 1px rgba(167,139,250,0.12);
+}
+.emoji-opt {
+  font-size: 1.15rem;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: transform 0.15s ease, background 0.12s ease;
+  user-select: none;
+}
+.emoji-opt:hover { transform: scale(1.45); background: rgba(255,255,255,0.09); }
+
+/* Reaction chips shown below a message */
+.reaction-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 2px 7px;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  background: rgba(255,255,255,0.07);
+  border: 1px solid rgba(255,255,255,0.13);
+  cursor: pointer;
+  transition: background 0.15s ease, transform 0.12s ease;
+  user-select: none;
+  animation: reactionBounce 0.3s ease-out both;
+}
+.reaction-chip:hover         { background: rgba(139,92,246,0.22); transform: scale(1.06); }
+.reaction-chip.mine          { background: rgba(139,92,246,0.28); border-color: rgba(167,139,250,0.4); }
+
+/* ──────────────────────────────────────────────────────────────────
+   GROUP ADMIN PANEL  (Right Sidebar)
+   ────────────────────────────────────────────────────────────────── */
+
+@keyframes slideDown {
+  from { opacity: 0; transform: translateY(-6px); max-height: 0; }
+  to   { opacity: 1; transform: translateY(0);    max-height: 700px; }
+}
+
+.admin-panel-body {
+  animation: slideDown 0.28s ease-out both;
+  overflow: hidden;
+}
+
+.admin-member-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  transition: background 0.15s ease;
+}
+.admin-member-item:hover { background: rgba(255,255,255,0.05); }
+
+.admin-btn {
+  font-size: 0.65rem;
+  padding: 2px 7px;
+  border-radius: 6px;
+  border: 1px solid;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  font-family: inherit;
+  font-weight: 500;
+}
+.admin-btn-kick    { color: #f87171; border-color: rgba(248,113,113,0.3); background: rgba(239,68,68,0.1); }
+.admin-btn-kick:hover    { background: rgba(239,68,68,0.22); }
+.admin-btn-promote { color: #a78bfa; border-color: rgba(167,139,250,0.3); background: rgba(124,58,237,0.1); }
+.admin-btn-promote:hover { background: rgba(124,58,237,0.22); }
+
+/* Deleted message style */
+.msg-deleted-bubble {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  color: rgba(255,255,255,0.35);
+  font-style: italic;
+  font-size: 0.8rem;
+  padding: 6px 10px;
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 10px;
+  background: rgba(255,255,255,0.03);
+}
+
+/* Fade-in-slow for animate-fade-in-slow references */
+.animate-fade-in-slow { animation: fadeIn 1.4s ease-out both; }
+
+
+/* ================================================================
+   RESPONSIVE & BUG-FIX ADDITIONS
+================================================================ */
+
+/* Make the root always fill the viewport */
+html, body, #root { height: 100%; width: 100%; overflow: hidden; }
+
+/* Prevent text from overflowing bubbles */
+.break-words { word-break: break-word; overflow-wrap: break-word; }
+
+/* Action bar — position properly above the button row */
+.msg-action-bar {
+  position: absolute;  /* overrides the previous absolute */
+  background: rgba(28, 24, 56, 0.97);
+  border: 1px solid rgba(255,255,255,0.13);
+  border-radius: 10px;
+  padding: 3px 5px;
+  z-index: 30;
+  animation: popIn 0.18s ease-out both;
+  backdrop-filter: blur(14px);
+  box-shadow: 0 4px 20px rgba(0,0,0,0.45);
+  white-space: nowrap;
+  /* DO NOT set top/bottom here — controlled inline */
+}
+
+/* Fix emoji picker — rendered FIXED via React, so these only handle look */
+.emoji-picker-panel {
+  display: flex;
+  flex-wrap: wrap;
+  max-width: 240px;
+  gap: 2px;
+  padding: 6px 8px;
+  background: rgba(22, 19, 52, 0.98);
+  border: 1px solid rgba(255,255,255,0.11);
+  border-radius: 14px;
+  z-index: 9999;
+  animation: popIn 0.2s ease-out both;
+  backdrop-filter: blur(18px);
+  box-shadow: 0 8px 32px rgba(0,0,0,0.55), 0 0 0 1px rgba(167,139,250,0.12);
+}
+
+/* Wider screens: single row */
+@media (min-width: 480px) {
+  .emoji-picker-panel { flex-wrap: nowrap; max-width: none; }
+}
+
+/* ── Message area scrollbar (thin, styled) ── */
+.overflow-y-auto::-webkit-scrollbar { width: 3px; }
+.overflow-y-auto::-webkit-scrollbar-thumb {
+  background: rgba(139,92,246,0.4);
+  border-radius: 99px;
+}
+
+/* ── Mobile: sidebar full-width when no chat open ── */
+@media (max-width: 767px) {
+  /* Left sidebar takes full width when no conversation selected */
+  .sidebar-full-mobile { width: 100% !important; }
+}
+
+/* ── Safe area for devices with notch/home bar ── */
+@supports (padding-bottom: env(safe-area-inset-bottom)) {
+  .input-safe { padding-bottom: calc(0.75rem + env(safe-area-inset-bottom)); }
+}
+
+/* Ensure canvas on login page never creates a scrollbar */
+canvas { display: block; }
+
+/* Fix: profile/group pages need z-index above canvas */
+.stars-layer { z-index: 1; }
+.animate-fade-in { position: relative; z-index: 2; }
+
+/* Smooth transition when chat column appears / disappears */
+.grid { transition: grid-template-columns 0.25s ease; }
+
+
+/* ── Sun-mode promote button ── */
+.admin-btn-promote-sun {
+  color: #fb923c;
+  border-color: rgba(251,146,60,0.3);
+  background: rgba(249,115,22,0.1);
+}
+.admin-btn-promote-sun:hover { background: rgba(249,115,22,0.22); }
+
+/* ── Sun-mode reaction chip ── */
+.reaction-chip.mine-sun {
+  background: rgba(239,68,68,0.28);
+  border-color: rgba(239,68,68,0.45);
+}
