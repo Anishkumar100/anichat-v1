@@ -260,7 +260,7 @@ export const LoginPage = () => {
   }
 
   return (
-    <div className='relative min-h-screen bg-cover flex items-center justify-center gap-8 sm:justify-evenly max-sm:flex-col backdrop-blur-2xl overflow-hidden mb-10'>
+    <div className='relative min-h-screen bg-cover flex items-center justify-center gap-8 sm:justify-evenly max-sm:flex-col backdrop-blur-2xl overflow-x-hidden mb-10'>
       <MeteorCanvas />
       <div className="starry-bg-blur" />
       <div className="relative z-10 w-full sm:w-1/2 flex flex-col items-center justify-center text-center px-6 sm:px-10 py-10">
