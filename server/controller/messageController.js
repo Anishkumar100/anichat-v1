@@ -160,3 +160,21 @@ export const hardDeleteMessage = async (req, res) => {
     res.json({ success: false, message: error.message });
   }
 };
+
+// ── Upload GIF to Cloudinary (returns URL for personal gallery) ───────────────
+export const uploadGif = async (req, res) => {
+  try {
+    const { gif } = req.body;   // base64 data URI
+    if (!gif) return res.json({ success: false, message: "No file provided." });
+
+    const upload = await cloudinary.uploader.upload(gif, {
+      resource_type: "image",   // Cloudinary handles GIFs as images
+      format: "gif",            // preserve animation
+    });
+
+    res.json({ success: true, url: upload.secure_url });
+  } catch (error) {
+    console.error("uploadGif error:", error.message);
+    res.json({ success: false, message: error.message });
+  }
+};

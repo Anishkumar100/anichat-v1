@@ -183,14 +183,16 @@ export const ChatContainer = () => {
   const [reactPicker,    setReactPicker]    = useState(null);
   // mediaPanel: null | "emoji" | "gif" | "sticker"
   const [mediaPanel,     setMediaPanel]     = useState(null);
-  const [gifSearch,      setGifSearch]      = useState("");
-  const [gifResults,     setGifResults]     = useState([]);
-  const [gifLoading,     setGifLoading]     = useState(false);
+  // Personal GIF/sticker gallery — stored in localStorage, uploaded to Cloudinary
+  const [gifSearch,    setGifSearch]    = useState("");
+  const [myGifs,       setMyGifs]       = useState(() => {
+    try { return JSON.parse(localStorage.getItem("anichat_gifs") || "[]"); } catch { return []; }
+  });
+  const [gifUploading, setGifUploading] = useState(false);
   const [copyToast,      setCopyToast]      = useState(false);
 
   const scrollEnd    = useRef();
   const inputRef     = useRef();
-  const gifSearchRef = useRef();
 
   useEffect(() => { scrollEnd.current?.scrollIntoView({ behavior: "smooth" }); }, [messages, groupMessages]);
 
@@ -335,34 +337,34 @@ export const ChatContainer = () => {
     setHoveredMsgId(null);
   };
 
-  // ── GIF search via Tenor ──────────────────────────────────────────
-  const searchGifs = async (query) => {
-    const apiKey = import.meta.env.VITE_TENOR_API_KEY;
-    if (!apiKey) {
-      // Fallback: show placeholder message
-      setGifResults([{ url: null, preview: null, placeholder: true }]);
-      return;
-    }
-    setGifLoading(true);
+  // ── Personal GIF gallery — upload to Cloudinary, save URL to localStorage ──
+  const saveGifToGallery = async (file) => {
+    setGifUploading(true);
     try {
-      const q = query || "trending";
-      const res = await fetch(
-        `https://tenor.googleapis.com/v2/search?q=${encodeURIComponent(q)}&key=${apiKey}&limit=20&media_filter=gif`
+      const b64 = await toBase64(file);
+      const { data } = await axios.post(
+        `${BASE_URL}/api/messages/upload-gif`,
+        { gif: b64 },
+        { headers: { Authorization: token } }
       );
-      const json = await res.json();
-      const results = (json.results || []).map(r => ({
-        url:     r.media_formats?.gif?.url     || r.url,
-        preview: r.media_formats?.tinygif?.url || r.media_formats?.gif?.url,
-        id:      r.id,
-      }));
-      setGifResults(results);
-    } catch { setGifResults([]); }
-    finally { setGifLoading(false); }
+      if (data.success) {
+        const updated = [{ url: data.url, name: file.name, ts: Date.now() }, ...myGifs].slice(0, 50);
+        setMyGifs(updated);
+        localStorage.setItem("anichat_gifs", JSON.stringify(updated));
+      }
+    } catch(e) { console.error("GIF upload:", e); }
+    finally { setGifUploading(false); }
   };
 
-  useEffect(() => {
-    if (mediaPanel === "gif") searchGifs(gifSearch);
-  }, [mediaPanel]);
+  const deleteFromGallery = (url) => {
+    const updated = myGifs.filter(g => g.url !== url);
+    setMyGifs(updated);
+    localStorage.setItem("anichat_gifs", JSON.stringify(updated));
+  };
+
+  const filteredGifs = gifSearch
+    ? myGifs.filter(g => g.name?.toLowerCase().includes(gifSearch.toLowerCase()))
+    : myGifs;
 
   // ── Insert emoji at cursor ────────────────────────────────────────
   const insertEmoji = (emoji) => {
@@ -417,11 +419,7 @@ export const ChatContainer = () => {
   // ── Media panel (emoji / gif / sticker) ───────────────────────────
   const MediaPanelPortal = () => {
     if (!mediaPanel) return null;
-
     const btnGrad = isSunMode ? "from-orange-500 to-red-600" : "from-purple-500 to-violet-600";
-    const tabActive = isSunMode
-      ? "bg-orange-500/30 text-orange-200 border-orange-400/40"
-      : "bg-violet-500/30 text-violet-200 border-violet-400/40";
 
     return createPortal(
       <div data-media-panel style={{
@@ -436,20 +434,16 @@ export const ChatContainer = () => {
         {/* Tab bar */}
         <div style={{ display:"flex", gap:"4px", padding:"8px 8px 0", flexShrink:0 }}>
           {["emoji","gif","sticker"].map(tab => (
-            <button key={tab} onClick={() => {
-              setMediaPanel(tab);
-              if (tab === "gif") searchGifs(gifSearch);
-            }}
+            <button key={tab} onClick={() => setMediaPanel(tab)}
               style={{
                 flex:1, padding:"5px 8px", borderRadius:"10px", border:"1px solid transparent",
-                background: mediaPanel === tab ? undefined : "transparent",
-                color: mediaPanel === tab ? undefined : "rgba(255,255,255,0.5)",
-                cursor:"pointer", fontSize:"0.75rem", fontWeight:600,
-                fontFamily:"inherit", transition:"all 0.15s ease",
-              }}
-              className={mediaPanel === tab ? `bg-gradient-to-r ${btnGrad} text-white` : ""}
-            >
-              {tab === "emoji" ? "😀 Emoji" : tab === "gif" ? "🎬 GIF" : "🎭 Sticker"}
+                background: "transparent", cursor:"pointer", fontSize:"0.75rem",
+                fontWeight:600, fontFamily:"inherit", transition:"all 0.15s ease",
+                color: mediaPanel === tab ? "white" : "rgba(255,255,255,0.45)",
+                borderColor: mediaPanel === tab ? "rgba(255,255,255,0.2)" : "transparent",
+                backgroundImage: mediaPanel === tab ? `linear-gradient(135deg, ${isSunMode ? "#f97316,#dc2626" : "#7c3aed,#9333ea"})` : undefined,
+              }}>
+              {tab === "emoji" ? "😀 Emoji" : tab === "gif" ? "🎬 GIFs" : "🎭 Stickers"}
             </button>
           ))}
         </div>
@@ -457,14 +451,14 @@ export const ChatContainer = () => {
         {/* Content */}
         <div style={{ flex:1, overflowY:"auto", padding:"8px" }}>
 
-          {/* Emoji grid */}
+          {/* ── Emoji ── */}
           {mediaPanel === "emoji" && (
             <div style={{ display:"flex", flexWrap:"wrap", gap:"2px" }}>
               {INPUT_EMOJIS.map(em => (
-                <div key={em} onClick={() => { insertEmoji(em); }}
+                <div key={em} onClick={() => insertEmoji(em)}
                   style={{ fontSize:"1.4rem", width:"38px", height:"38px", display:"flex",
                     alignItems:"center", justifyContent:"center", borderRadius:"8px",
-                    cursor:"pointer", transition:"transform 0.12s ease", userSelect:"none" }}
+                    cursor:"pointer", userSelect:"none", transition:"transform 0.12s ease" }}
                   onMouseEnter={e => { e.currentTarget.style.transform="scale(1.35)"; e.currentTarget.style.background="rgba(255,255,255,0.08)"; }}
                   onMouseLeave={e => { e.currentTarget.style.transform="scale(1)"; e.currentTarget.style.background="transparent"; }}
                 >{em}</div>
@@ -472,60 +466,77 @@ export const ChatContainer = () => {
             </div>
           )}
 
-          {/* GIF search */}
+          {/* ── Personal GIF Gallery ── */}
           {mediaPanel === "gif" && (
             <div style={{ display:"flex", flexDirection:"column", gap:"8px" }}>
-              <div style={{ display:"flex", gap:"6px" }}>
-                <input
-                  ref={gifSearchRef}
-                  value={gifSearch}
-                  onChange={e => setGifSearch(e.target.value)}
-                  onKeyDown={e => { if (e.key === "Enter") searchGifs(gifSearch); }}
-                  placeholder="Search GIFs (requires VITE_TENOR_API_KEY)…"
-                  style={{
-                    flex:1, padding:"6px 10px", background:"rgba(255,255,255,0.08)",
+              {/* Search + upload */}
+              <div style={{ display:"flex", gap:"6px", alignItems:"center" }}>
+                <input value={gifSearch} onChange={e => setGifSearch(e.target.value)}
+                  placeholder="Search your GIFs…"
+                  style={{ flex:1, padding:"6px 10px", background:"rgba(255,255,255,0.08)",
                     border:"1px solid rgba(255,255,255,0.15)", borderRadius:"8px",
-                    color:"white", fontSize:"0.75rem", outline:"none", fontFamily:"inherit",
-                  }}
-                />
-                <button onClick={() => searchGifs(gifSearch)}
-                  style={{ padding:"6px 12px", borderRadius:"8px", border:"none",
-                    background:"linear-gradient(135deg,#7c3aed,#9333ea)", color:"white",
-                    cursor:"pointer", fontSize:"0.75rem", fontFamily:"inherit" }}>
-                  Go
-                </button>
+                    color:"white", fontSize:"0.75rem", outline:"none", fontFamily:"inherit" }} />
+                {/* Upload a new GIF */}
+                <label style={{ cursor:"pointer", flexShrink:0 }}>
+                  <input type="file" accept="image/gif,image/webp" hidden
+                    onChange={e => { const f=e.target.files[0]; if(f) saveGifToGallery(f); e.target.value=""; }} />
+                  <div style={{ padding:"6px 10px", borderRadius:"8px", border:"none",
+                    backgroundImage:`linear-gradient(135deg, ${isSunMode?"#f97316,#dc2626":"#7c3aed,#9333ea"})`,
+                    color:"white", cursor:"pointer", fontSize:"0.75rem", fontFamily:"inherit",
+                    display:"flex", alignItems:"center", gap:"4px", whiteSpace:"nowrap" }}>
+                    {gifUploading ? "⏳" : "＋ Add GIF"}
+                  </div>
+                </label>
               </div>
-              {gifLoading && <p style={{ color:"rgba(255,255,255,0.4)", fontSize:"0.75rem", textAlign:"center" }}>Searching…</p>}
-              {!gifLoading && gifResults.length === 0 && (
-                <p style={{ color:"rgba(255,255,255,0.3)", fontSize:"0.72rem", textAlign:"center", padding:"12px" }}>
-                  Add VITE_TENOR_API_KEY to your .env to enable GIF search
-                </p>
+
+              {filteredGifs.length === 0 && (
+                <div style={{ textAlign:"center", padding:"20px 0", color:"rgba(255,255,255,0.3)", fontSize:"0.8rem" }}>
+                  <div style={{ fontSize:"2rem", marginBottom:"8px" }}>🎬</div>
+                  <p>Your GIF gallery is empty.</p>
+                  <p style={{ fontSize:"0.7rem", marginTop:"4px", opacity:0.6 }}>
+                    Upload GIF files with the "+ Add GIF" button above.
+                  </p>
+                </div>
               )}
-              {!gifLoading && gifResults.length > 0 && (
-                <div style={{ display:"grid", gridTemplateColumns:"repeat(3, 1fr)", gap:"4px" }}>
-                  {gifResults.map((gif, i) => gif.url ? (
-                    <img key={i} src={gif.preview || gif.url} alt="gif"
-                      onClick={() => sendMedia(gif.url)}
-                      style={{ width:"100%", aspectRatio:"1", objectFit:"cover",
-                        borderRadius:"6px", cursor:"pointer", transition:"opacity 0.15s" }}
-                      onMouseEnter={e => e.target.style.opacity="0.8"}
-                      onMouseLeave={e => e.target.style.opacity="1"}
-                    />
-                  ) : null)}
+
+              {filteredGifs.length > 0 && (
+                <div style={{ display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:"4px" }}>
+                  {filteredGifs.map((gif, i) => (
+                    <div key={i} style={{ position:"relative", aspectRatio:"1" }}
+                      onMouseEnter={e => e.currentTarget.querySelector(".del-btn").style.opacity="1"}
+                      onMouseLeave={e => e.currentTarget.querySelector(".del-btn").style.opacity="0"}>
+                      <img src={gif.url} alt={gif.name}
+                        onClick={() => { sendMedia(gif.url); setMediaPanel(null); }}
+                        style={{ width:"100%", height:"100%", objectFit:"cover",
+                          borderRadius:"8px", cursor:"pointer", display:"block" }} />
+                      <button className="del-btn"
+                        onClick={e => { e.stopPropagation(); deleteFromGallery(gif.url); }}
+                        style={{ position:"absolute", top:"3px", right:"3px", opacity:0,
+                          width:"18px", height:"18px", borderRadius:"50%", border:"none",
+                          background:"rgba(0,0,0,0.7)", color:"white", cursor:"pointer",
+                          display:"flex", alignItems:"center", justifyContent:"center",
+                          fontSize:"0.6rem", transition:"opacity 0.15s ease", lineHeight:1 }}>✕</button>
+                    </div>
+                  ))}
                 </div>
               )}
             </div>
           )}
 
-          {/* Sticker grid */}
+          {/* ── Sticker gallery ── */}
           {mediaPanel === "sticker" && (
             <div style={{ display:"flex", flexWrap:"wrap", gap:"4px" }}>
               {STICKER_EMOJIS.map(em => (
-                <div key={em} onClick={() => { sendMedia(null); insertEmoji(em); setMediaPanel(null); }}
+                <div key={em}
+                  onClick={() => {
+                    // Send sticker as a large text message
+                    if (selectedUser)  sendDM(em, null);
+                    else if (selectedGroup) sendGroup(em, null);
+                    setMediaPanel(null);
+                  }}
                   style={{ fontSize:"2rem", width:"52px", height:"52px", display:"flex",
                     alignItems:"center", justifyContent:"center", borderRadius:"10px",
-                    cursor:"pointer", transition:"transform 0.15s ease, background 0.12s ease",
-                    userSelect:"none" }}
+                    cursor:"pointer", userSelect:"none", transition:"transform 0.15s ease" }}
                   onMouseEnter={e => { e.currentTarget.style.transform="scale(1.25)"; e.currentTarget.style.background="rgba(255,255,255,0.08)"; }}
                   onMouseLeave={e => { e.currentTarget.style.transform="scale(1)"; e.currentTarget.style.background="transparent"; }}
                 >{em}</div>
@@ -537,7 +548,6 @@ export const ChatContainer = () => {
       document.body
     );
   };
-
   // ── Copy toast ────────────────────────────────────────────────────
   const CopyToast = () => copyToast ? createPortal(
     <div style={{

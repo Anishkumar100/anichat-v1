@@ -278,14 +278,14 @@ export const RightSidebar = () => {
                       return (
                         <div key={mId} className="admin-member-item">
                           <img src={mPic} alt="" className="w-6 h-6 rounded-full object-cover flex-shrink-0" />
-                          <span className="flex-1 text-xs text-white/80 truncate">{mName}</span>
+                          <span className="member-name">{mName}</span>
                           {isGAdmin && (
                             <span className={`text-[9px] border px-1.5 py-0.5 rounded-full flex-shrink-0 ${adminBadgeCls}`}>admin</span>
                           )}
                           {!isSelf && !isGAdmin && (
-                            <div className="flex gap-1 flex-shrink-0">
-                              <button onClick={() => handleKick(mId)}    className="admin-btn admin-btn-kick">Kick</button>
-                              <button onClick={() => handlePromote(mId)} className={`admin-btn ${promoteCls}`}>↑</button>
+                            <div className="member-actions">
+                              <button onClick={() => handleKick(mId)} className="admin-btn admin-btn-kick">Kick</button>
+                              <button onClick={() => handlePromote(mId)} className={`admin-btn ${promoteCls}`}>↑ Admin</button>
                             </div>
                           )}
                         </div>

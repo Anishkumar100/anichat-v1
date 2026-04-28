@@ -5,6 +5,9 @@ import axios from "axios";
 export const BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000";
 export const appContext = createContext();
 
+// Safe string comparison — handles ObjectId objects vs plain strings
+const idEq = (a, b) => a && b && String(a) === String(b);
+
 export const ContextProvider = ({ children }) => {
   const [authUser, setAuthUser]             = useState(null);
   const [token, setToken]                   = useState(localStorage.getItem("token") || "");
@@ -20,16 +23,15 @@ export const ContextProvider = ({ children }) => {
   const [bg, setBg]                         = useState(
     JSON.parse(localStorage.getItem("bg")) || null
   );
-  // isSunMode: true when blackhole.jpg (sun = red/orange), false when bgImage (dark = purple)
-  // We import assets lazily to avoid circular deps — check the stored string key
+
   const isSunMode = bg !== null
-    ? String(bg).includes("blackhole")    // blackhole.jpg → red/orange sun theme
-    : false;                               // default: dark mode (bgImage is default bg)
+    ? String(bg).includes("blackhole")
+    : false;
 
   const socketRef        = useRef(null);
   const selectedUserRef  = useRef(selectedUser);
   const selectedGroupRef = useRef(selectedGroup);
-
+  // Keep refs always current so socket closures always read latest state
   useEffect(() => { selectedUserRef.current  = selectedUser;  }, [selectedUser]);
   useEffect(() => { selectedGroupRef.current = selectedGroup; }, [selectedGroup]);
 
@@ -41,7 +43,7 @@ export const ContextProvider = ({ children }) => {
       .catch(logout);
   }, [token]);
 
-  // Socket connection
+  // ── Socket connection ──────────────────────────────────────────────
   useEffect(() => {
     if (!authUser) {
       socketRef.current?.disconnect();
@@ -51,79 +53,100 @@ export const ContextProvider = ({ children }) => {
 
     const socket = io(BASE_URL, {
       query: { userId: authUser._id },
-      // Try WebSocket first, fall back to polling (required for Vercel)
       transports: ["websocket", "polling"],
       reconnection: true,
-      reconnectionAttempts: 5,
-      reconnectionDelay: 2000,
+      reconnectionAttempts: 10,
+      reconnectionDelay: 1000,
+      timeout: 20000,
     });
     socketRef.current = socket;
 
-    socket.on("onlineUsers", setOnlineUsers);
+    // ── Online presence ────────────────────────────────────────────
+    socket.on("onlineUsers", (ids) => {
+      // ids = array of plain strings from server
+      setOnlineUsers(ids.map(String));
+    });
 
-    // ── New DM received ──────────────────────────────────────────
+    // ── New DM received ────────────────────────────────────────────
     socket.on("newMessage", (newMessage) => {
-      if (selectedUserRef.current?._id === newMessage.senderId) {
+      // FIX: use idEq for safe ObjectId ↔ string comparison
+      if (idEq(selectedUserRef.current?._id, newMessage.senderId)) {
         setMessages((p) => [...p, newMessage]);
+        // Also mark as seen immediately if chat is open
       } else {
-        setUnseenMessages((p) => ({ ...p, [newMessage.senderId]: (p[newMessage.senderId] || 0) + 1 }));
+        const sid = String(newMessage.senderId);
+        setUnseenMessages((p) => ({ ...p, [sid]: (p[sid] || 0) + 1 }));
       }
     });
 
-    // ── New group message received ────────────────────────────────
+    // ── New group message ──────────────────────────────────────────
     socket.on("newGroupMessage", ({ groupId, message }) => {
-      if (selectedGroupRef.current?._id === groupId) {
+      if (idEq(selectedGroupRef.current?._id, groupId)) {
         setGroupMessages((p) => [...p, message]);
       } else {
-        setUnseenMessages((p) => ({ ...p, [`group_${groupId}`]: (p[`group_${groupId}`] || 0) + 1 }));
+        const key = `group_${groupId}`;
+        setUnseenMessages((p) => ({ ...p, [key]: (p[key] || 0) + 1 }));
       }
     });
 
-    // ── DM deleted ────────────────────────────────────────────────
+    // ── DM soft deleted ────────────────────────────────────────────
     socket.on("messageDeleted", ({ messageId }) => {
-      setMessages((p) => p.map((m) => m._id === messageId ? { ...m, deleted: true, text: "", image: "" } : m));
+      setMessages((p) => p.map((m) =>
+        idEq(m._id, messageId) ? { ...m, deleted: true, text: "", image: "" } : m
+      ));
     });
 
-    // ── DM hard deleted (completely removed) ─────────────────────
+    // ── DM hard deleted ────────────────────────────────────────────
     socket.on("messageHardDeleted", ({ messageId }) => {
-      setMessages((p) => p.filter((m) => m._id !== messageId));
+      setMessages((p) => p.filter((m) => !idEq(m._id, messageId)));
     });
 
-    // ── Group message hard deleted ──────────────────────────────
-    socket.on("groupMessageHardDeleted", ({ messageId }) => {
-      setGroupMessages((p) => p.filter((m) => m._id !== messageId));
-    });
-
-    // ── Group message deleted ─────────────────────────────────────
+    // ── Group message soft deleted ─────────────────────────────────
     socket.on("groupMessageDeleted", ({ messageId }) => {
-      setGroupMessages((p) => p.map((m) => m._id === messageId ? { ...m, deleted: true, text: "", image: "" } : m));
+      setGroupMessages((p) => p.map((m) =>
+        idEq(m._id, messageId) ? { ...m, deleted: true, text: "", image: "" } : m
+      ));
     });
 
-    // ── DM reaction updated ───────────────────────────────────────
+    // ── Group message hard deleted ─────────────────────────────────
+    socket.on("groupMessageHardDeleted", ({ messageId }) => {
+      setGroupMessages((p) => p.filter((m) => !idEq(m._id, messageId)));
+    });
+
+    // ── Reactions ──────────────────────────────────────────────────
     socket.on("reactionUpdated", ({ messageId, reactions }) => {
-      setMessages((p) => p.map((m) => m._id === messageId ? { ...m, reactions } : m));
+      setMessages((p) => p.map((m) => idEq(m._id, messageId) ? { ...m, reactions } : m));
     });
-
-    // ── Group reaction updated ────────────────────────────────────
     socket.on("groupReactionUpdated", ({ messageId, reactions }) => {
-      setGroupMessages((p) => p.map((m) => m._id === messageId ? { ...m, reactions } : m));
+      setGroupMessages((p) => p.map((m) => idEq(m._id, messageId) ? { ...m, reactions } : m));
     });
 
-    // ── Group metadata changed (name/pic/members) ─────────────────
+    // ── Group updated (name/pic/members) ───────────────────────────
     socket.on("groupUpdated", (updatedGroup) => {
-      setGroups((p) => p.map((g) => g._id === updatedGroup._id ? updatedGroup : g));
-      if (selectedGroupRef.current?._id === updatedGroup._id) setSelectedGroup(updatedGroup);
+      setGroups((p) => p.map((g) => idEq(g._id, updatedGroup._id) ? updatedGroup : g));
+      if (idEq(selectedGroupRef.current?._id, updatedGroup._id)) {
+        setSelectedGroup(updatedGroup);
+      }
     });
 
-    // ── You were removed from a group ────────────────────────────
-    socket.on("removedFromGroup", ({ groupId }) => {
-      setGroups((p) => p.filter((g) => g._id !== groupId));
-      if (selectedGroupRef.current?._id === groupId) setSelectedGroup(null);
-    });
-
-    // ── A new group was created and you are a member ──────────────
+    // ── Added to a group you weren't in before ─────────────────────
     socket.on("newGroup", (group) => {
-      setGroups((p) => [...p, group]);
+      // Prevent duplicates
+      setGroups((p) => {
+        const exists = p.some((g) => idEq(g._id, group._id));
+        return exists ? p.map((g) => idEq(g._id, group._id) ? group : g) : [...p, group];
+      });
+    });
+
+    // ── Removed from a group ───────────────────────────────────────
+    socket.on("removedFromGroup", ({ groupId }) => {
+      setGroups((p) => p.filter((g) => !idEq(g._id, groupId)));
+      if (idEq(selectedGroupRef.current?._id, groupId)) setSelectedGroup(null);
+    });
+
+    // ── Reconnect: re-register userId so presence map is rebuilt ──
+    socket.on("reconnect", () => {
+      console.log("Socket reconnected — re-emitting userId");
     });
 
     return () => { socket.disconnect(); };

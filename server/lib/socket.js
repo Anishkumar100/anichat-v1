@@ -1,20 +1,7 @@
-/**
- * lib/socket.js — Socket.io Server Setup
- *
- * VERCEL NOTE:
- * Vercel's serverless functions don't support persistent WebSocket connections.
- * Socket.io will automatically fall back to HTTP long-polling on Vercel.
- * For production real-time features, deploy the server on Railway/Render/Fly.io.
- *
- * The configuration below:
- *  - Allows both WebSocket and polling transports
- *  - Sets generous timeouts so polling feels near-real-time
- *  - Explicitly allows the client origin via CORS
- */
-
 import { Server } from "socket.io";
 
 let io;
+// Map: userId (string) → socketId
 const userSocketMap = {};
 
 export const initSocket = (server) => {
@@ -24,36 +11,47 @@ export const initSocket = (server) => {
       methods: ["GET", "POST"],
       credentials: true,
     },
-    // Allow both transports — Vercel will use polling, other hosts use WebSocket
     transports: ["websocket", "polling"],
-    // Generous timeouts for polling transport
     pingTimeout:  60000,
     pingInterval: 25000,
-    // Required for Vercel — allows the upgrade to be attempted
     allowUpgrades: true,
-    // Path (default /socket.io/) — must match client
-    path: "/socket.io/",
   });
 
   io.on("connection", (socket) => {
-    const userId = socket.handshake.query.userId;
+    const userId = socket.handshake.query.userId
+      ? String(socket.handshake.query.userId)
+      : null;
+
     if (userId) {
       userSocketMap[userId] = socket.id;
-      console.log(`✅ User connected: ${userId} → ${socket.id} (${socket.conn.transport.name})`);
+      console.log(`✅ Connected: ${userId} via ${socket.conn.transport.name}`);
+      // Broadcast updated online list to everyone
       io.emit("onlineUsers", Object.keys(userSocketMap));
     }
 
-    socket.on("disconnect", () => {
+    // Handle transport upgrade (polling → websocket)
+    socket.conn.on("upgrade", (transport) => {
+      console.log(`⬆️  Upgraded to: ${transport.name} for ${userId}`);
+    });
+
+    socket.on("disconnect", (reason) => {
       if (userId) {
         delete userSocketMap[userId];
-        console.log(`❌ User disconnected: ${userId}`);
+        console.log(`❌ Disconnected: ${userId} (${reason})`);
         io.emit("onlineUsers", Object.keys(userSocketMap));
       }
     });
+
+    // Client can explicitly ping to check connection
+    socket.on("ping", () => socket.emit("pong"));
   });
 
   return io;
 };
 
-export const getReceiverSocketId = (userId) => userSocketMap[String(userId)];
+export const getReceiverSocketId = (userId) => {
+  if (!userId) return undefined;
+  return userSocketMap[String(userId)];
+};
+
 export { io };
