@@ -187,3 +187,24 @@ export const toggleGroupReaction = async (req, res) => {
     res.json({ success: true, reactions: message.reactions });
   } catch (e) { res.json({ success: false, message: e.message }); }
 };
+
+// ── Hard delete group message ─────────────────────────────────────────────────
+export const hardDeleteGroupMessage = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const userId = req.user._id;
+    const message = await groupMessageModel.findById(id);
+    if (!message) return res.json({ success: false, message: "Not found." });
+    const group = await groupModel.findById(message.groupId);
+    const isAdmin  = group.admin.toString() === userId.toString();
+    const isSender = message.senderId.toString() === userId.toString();
+    if (!isAdmin && !isSender)
+      return res.json({ success: false, message: "Cannot delete this message." });
+
+    await groupMessageModel.findByIdAndDelete(id);
+    emitToGroup(group, "groupMessageHardDeleted", { messageId: id, groupId: message.groupId.toString() });
+    res.json({ success: true });
+  } catch (error) {
+    res.json({ success: false, message: error.message });
+  }
+};

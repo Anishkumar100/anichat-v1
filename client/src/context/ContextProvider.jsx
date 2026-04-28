@@ -84,6 +84,16 @@ export const ContextProvider = ({ children }) => {
       setMessages((p) => p.map((m) => m._id === messageId ? { ...m, deleted: true, text: "", image: "" } : m));
     });
 
+    // ── DM hard deleted (completely removed) ─────────────────────
+    socket.on("messageHardDeleted", ({ messageId }) => {
+      setMessages((p) => p.filter((m) => m._id !== messageId));
+    });
+
+    // ── Group message hard deleted ──────────────────────────────
+    socket.on("groupMessageHardDeleted", ({ messageId }) => {
+      setGroupMessages((p) => p.filter((m) => m._id !== messageId));
+    });
+
     // ── Group message deleted ─────────────────────────────────────
     socket.on("groupMessageDeleted", ({ messageId }) => {
       setGroupMessages((p) => p.map((m) => m._id === messageId ? { ...m, deleted: true, text: "", image: "" } : m));
