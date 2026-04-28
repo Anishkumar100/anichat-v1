@@ -1,21 +1,9 @@
-import React, { createContext, useContext, useEffect, useRef, useState, useCallback } from "react";
+import React, { createContext, useContext, useEffect, useRef, useState } from "react";
 import { io } from "socket.io-client";
 import axios from "axios";
 
 export const BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000";
 export const appContext = createContext();
-
-const idEq = (a, b) => a && b && String(a) === String(b);
-
-// Vercel serverless: Lambda instances don't share memory.
-// Socket.io sessions created in one Lambda are unknown to the next → 400.
-// Fix: skip Socket.io on Vercel, use REST polling + DB heartbeats instead.
-const IS_VERCEL =
-  (typeof window !== "undefined" && window.location.hostname.includes("vercel.app")) ||
-  BASE_URL.includes("vercel.app");
-
-const POLL_INTERVAL      = 2500;  // message/group refresh (ms)
-const HEARTBEAT_INTERVAL = 25000; // online presence ping (ms)
 
 export const ContextProvider = ({ children }) => {
   const [authUser, setAuthUser]             = useState(null);
@@ -28,25 +16,42 @@ export const ContextProvider = ({ children }) => {
   const [messages, setMessages]             = useState([]);
   const [groupMessages, setGroupMessages]   = useState([]);
   const [onlineUsers, setOnlineUsers]       = useState([]);
+  // Client-side online inference: track when we last saw activity from each user.
+  // If someone sent a message in the last 5 minutes, they're online — no DB needed.
+  const recentActivity = useRef({});   // { userId: timestamp }
+
+  // Call this any time we know a user is active
+  const markUserActive = (userId) => {
+    if (!userId) return;
+    recentActivity.current[String(userId)] = Date.now();
+  };
+
+  // Merge DB online list with client-side activity inference
+  const isUserOnline = (userId) => {
+    if (!userId) return false;
+    const uid = String(userId);
+    if (onlineUsers.includes(uid)) return true;
+    const last = recentActivity.current[uid];
+    return last && (Date.now() - last) < 5 * 60 * 1000;  // 5 minutes
+  };
   const [createGrp, setCreateGrp]           = useState(false);
   const [bg, setBg]                         = useState(
     JSON.parse(localStorage.getItem("bg")) || null
   );
-
-  const isSunMode = bg !== null ? String(bg).includes("blackhole") : false;
+  // isSunMode: true when blackhole.jpg (sun = red/orange), false when bgImage (dark = purple)
+  // We import assets lazily to avoid circular deps — check the stored string key
+  const isSunMode = bg !== null
+    ? String(bg).includes("blackhole")    // blackhole.jpg → red/orange sun theme
+    : false;                               // default: dark mode (bgImage is default bg)
 
   const socketRef        = useRef(null);
-  const pollRef          = useRef(null);
-  const heartbeatRef     = useRef(null);
   const selectedUserRef  = useRef(selectedUser);
   const selectedGroupRef = useRef(selectedGroup);
-  const tokenRef         = useRef(token);
 
   useEffect(() => { selectedUserRef.current  = selectedUser;  }, [selectedUser]);
   useEffect(() => { selectedGroupRef.current = selectedGroup; }, [selectedGroup]);
-  useEffect(() => { tokenRef.current         = token;         }, [token]);
 
-  // Session restore
+  // Restore session on page load
   useEffect(() => {
     if (!token) return;
     axios.get(`${BASE_URL}/api/auth/check`, { headers: { Authorization: token } })
@@ -54,144 +59,80 @@ export const ContextProvider = ({ children }) => {
       .catch(logout);
   }, [token]);
 
-  // ── REST polling (Vercel path) ────────────────────────────────────
-  const startRestPolling = useCallback(() => {
-    if (pollRef.current) clearInterval(pollRef.current);
-
-    pollRef.current = setInterval(async () => {
-      try {
-        const headers = { Authorization: tokenRef.current };
-
-        // Sidebar users + unseen counts
-        const { data: ud } = await axios.get(`${BASE_URL}/api/messages/users`, { headers });
-        if (ud.success) {
-          setUsers(ud.users);
-          setUnseenMessages(prev => {
-            const next = { ...prev };
-            Object.entries(ud.unseenMessages || {}).forEach(([uid, cnt]) => {
-              if (!idEq(selectedUserRef.current?._id, uid)) next[uid] = cnt;
-              else next[uid] = 0;
-            });
-            return next;
-          });
-        }
-
-        // Active DM messages
-        const openUser = selectedUserRef.current;
-        if (openUser) {
-          const { data: md } = await axios.get(`${BASE_URL}/api/messages/${openUser._id}`, { headers });
-          if (md.success) setMessages(md.messages);
-        }
-
-        // Active group messages
-        const openGroup = selectedGroupRef.current;
-        if (openGroup) {
-          const { data: gd } = await axios.get(`${BASE_URL}/api/groups/${openGroup._id}/messages`, { headers });
-          if (gd.success) setGroupMessages(gd.messages);
-        }
-
-        // Groups list
-        const { data: grps } = await axios.get(`${BASE_URL}/api/groups`, { headers });
-        if (grps.success) setGroups(grps.groups);
-
-        // Online users — DB heartbeat based (works on Vercel, no Socket.io needed)
-        const { data: ol } = await axios.get(`${BASE_URL}/api/auth/online`, { headers });
-        if (ol.success) setOnlineUsers(ol.onlineIds);
-
-      } catch { /* silent */ }
-    }, POLL_INTERVAL);
-  }, []);
-
-  // ── Heartbeat — marks this user as online in the DB ──────────────
-  const startHeartbeat = useCallback(() => {
-    if (heartbeatRef.current) clearInterval(heartbeatRef.current);
-
-    // Ping immediately, then every HEARTBEAT_INTERVAL
-    const ping = () => {
-      if (!tokenRef.current) return;
-      axios.post(`${BASE_URL}/api/auth/heartbeat`, {}, { headers: { Authorization: tokenRef.current } })
-        .catch(() => {});
-    };
-    ping();
-    heartbeatRef.current = setInterval(ping, HEARTBEAT_INTERVAL);
-  }, []);
-
-  // ── Socket.io (non-Vercel) OR REST polling (Vercel) ──────────────
+  // Socket connection
   useEffect(() => {
     if (!authUser) {
-      socketRef.current?.disconnect(); socketRef.current = null;
-      clearInterval(pollRef.current);      pollRef.current = null;
-      clearInterval(heartbeatRef.current); heartbeatRef.current = null;
+      socketRef.current?.disconnect();
+      socketRef.current = null;
       return;
     }
 
-    // Always send heartbeat regardless of platform
-    startHeartbeat();
-
-    if (IS_VERCEL) {
-      // Pure REST polling on Vercel — no socket errors, no 400s
-      startRestPolling();
-      return () => {
-        clearInterval(pollRef.current);
-        clearInterval(heartbeatRef.current);
-      };
-    }
-
-    // ── Non-Vercel: full Socket.io ────────────────────────────────
-    const socket = io(BASE_URL, {
-      query: { userId: authUser._id },
-      transports: ["websocket", "polling"],
-      reconnection: true,
-      reconnectionAttempts: 10,
-      reconnectionDelay: 1500,
-      timeout: 20000,
-    });
+    const socket = io(BASE_URL, { query: { userId: authUser._id } });
     socketRef.current = socket;
 
-    socket.on("onlineUsers", (ids) => setOnlineUsers(ids.map(String)));
+    socket.on("onlineUsers", setOnlineUsers);
 
-    socket.on("newMessage", (msg) => {
-      if (idEq(selectedUserRef.current?._id, msg.senderId)) {
-        setMessages(p => [...p, msg]);
+    // ── New DM received ──────────────────────────────────────────
+    socket.on("newMessage", (newMessage) => {
+      if (selectedUserRef.current?._id === newMessage.senderId) {
+        setMessages((p) => [...p, newMessage]);
       } else {
-        const sid = String(msg.senderId);
-        setUnseenMessages(p => ({ ...p, [sid]: (p[sid] || 0) + 1 }));
+        setUnseenMessages((p) => ({ ...p, [newMessage.senderId]: (p[newMessage.senderId] || 0) + 1 }));
       }
     });
+
+    // ── New group message received ────────────────────────────────
     socket.on("newGroupMessage", ({ groupId, message }) => {
-      if (idEq(selectedGroupRef.current?._id, groupId)) {
-        setGroupMessages(p => [...p, message]);
+      if (selectedGroupRef.current?._id === groupId) {
+        setGroupMessages((p) => [...p, message]);
       } else {
-        const key = `group_${groupId}`;
-        setUnseenMessages(p => ({ ...p, [key]: (p[key] || 0) + 1 }));
+        setUnseenMessages((p) => ({ ...p, [`group_${groupId}`]: (p[`group_${groupId}`] || 0) + 1 }));
       }
     });
-    socket.on("messageDeleted",      ({ messageId }) => setMessages(p => p.map(m => idEq(m._id, messageId) ? {...m, deleted:true, text:"", image:""} : m)));
-    socket.on("messageHardDeleted",  ({ messageId }) => setMessages(p => p.filter(m => !idEq(m._id, messageId))));
-    socket.on("groupMessageDeleted", ({ messageId }) => setGroupMessages(p => p.map(m => idEq(m._id, messageId) ? {...m, deleted:true, text:"", image:""} : m)));
-    socket.on("groupMessageHardDeleted", ({ messageId }) => setGroupMessages(p => p.filter(m => !idEq(m._id, messageId))));
-    socket.on("reactionUpdated",      ({ messageId, reactions }) => setMessages(p => p.map(m => idEq(m._id, messageId) ? {...m, reactions} : m)));
-    socket.on("groupReactionUpdated", ({ messageId, reactions }) => setGroupMessages(p => p.map(m => idEq(m._id, messageId) ? {...m, reactions} : m)));
-    socket.on("groupUpdated", (g) => {
-      setGroups(p => p.map(x => idEq(x._id, g._id) ? g : x));
-      if (idEq(selectedGroupRef.current?._id, g._id)) setSelectedGroup(g);
-    });
-    socket.on("newGroup", (g) => {
-      setGroups(p => p.some(x => idEq(x._id, g._id)) ? p.map(x => idEq(x._id, g._id) ? g : x) : [...p, g]);
-    });
-    socket.on("removedFromGroup", ({ groupId }) => {
-      setGroups(p => p.filter(g => !idEq(g._id, groupId)));
-      if (idEq(selectedGroupRef.current?._id, groupId)) setSelectedGroup(null);
+
+    // ── DM deleted ────────────────────────────────────────────────
+    socket.on("messageDeleted", ({ messageId }) => {
+      setMessages((p) => p.map((m) => m._id === messageId ? { ...m, deleted: true, text: "", image: "" } : m));
     });
 
-    return () => {
-      socket.disconnect();
-      clearInterval(heartbeatRef.current);
-    };
+    // ── Group message deleted ─────────────────────────────────────
+    socket.on("groupMessageDeleted", ({ messageId }) => {
+      setGroupMessages((p) => p.map((m) => m._id === messageId ? { ...m, deleted: true, text: "", image: "" } : m));
+    });
+
+    // ── DM reaction updated ───────────────────────────────────────
+    socket.on("reactionUpdated", ({ messageId, reactions }) => {
+      setMessages((p) => p.map((m) => m._id === messageId ? { ...m, reactions } : m));
+    });
+
+    // ── Group reaction updated ────────────────────────────────────
+    socket.on("groupReactionUpdated", ({ messageId, reactions }) => {
+      setGroupMessages((p) => p.map((m) => m._id === messageId ? { ...m, reactions } : m));
+    });
+
+    // ── Group metadata changed (name/pic/members) ─────────────────
+    socket.on("groupUpdated", (updatedGroup) => {
+      setGroups((p) => p.map((g) => g._id === updatedGroup._id ? updatedGroup : g));
+      if (selectedGroupRef.current?._id === updatedGroup._id) setSelectedGroup(updatedGroup);
+    });
+
+    // ── You were removed from a group ────────────────────────────
+    socket.on("removedFromGroup", ({ groupId }) => {
+      setGroups((p) => p.filter((g) => g._id !== groupId));
+      if (selectedGroupRef.current?._id === groupId) setSelectedGroup(null);
+    });
+
+    // ── A new group was created and you are a member ──────────────
+    socket.on("newGroup", (group) => {
+      setGroups((p) => [...p, group]);
+    });
+
+    return () => { socket.disconnect(); };
   }, [authUser]);
 
   const loginUser = (userData, jwtToken) => {
-    setAuthUser(userData); setToken(jwtToken);
+    setAuthUser(userData);
+    setToken(jwtToken);
     localStorage.setItem("token", jwtToken);
   };
 
@@ -200,9 +141,8 @@ export const ContextProvider = ({ children }) => {
     setMessages([]); setGroupMessages([]); setSelectedUser(null);
     setSelectedGroup(null); setOnlineUsers([]); setUnseenMessages({});
     localStorage.removeItem("token");
-    socketRef.current?.disconnect(); socketRef.current = null;
-    clearInterval(pollRef.current);      pollRef.current = null;
-    clearInterval(heartbeatRef.current); heartbeatRef.current = null;
+    socketRef.current?.disconnect();
+    socketRef.current = null;
   };
 
   const value = {
@@ -212,9 +152,10 @@ export const ContextProvider = ({ children }) => {
     messages, setMessages, groupMessages, setGroupMessages,
     onlineUsers, unseenMessages, setUnseenMessages,
     socket: socketRef.current,
+    isUserOnline,
+    markUserActive,
     createGrp, setCreateGrp,
     bg, setBg, isSunMode,
-    isVercel: IS_VERCEL,
     axiosConfig: { headers: { Authorization: token } },
   };
 

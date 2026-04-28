@@ -27,7 +27,6 @@ userRouter.put("/update-profile", auth, updateProfile);
 // GET  /api/auth/check           → verify token is still valid (used on page refresh)
 userRouter.get("/check", auth, checkAuth);
 
-// Heartbeat — ping to mark user as online (DB-based, works on Vercel)
 userRouter.post("/heartbeat", auth, heartbeat);
 userRouter.get("/online",    auth, getOnlineUsers);
 

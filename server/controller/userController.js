@@ -192,9 +192,7 @@ export const updateProfile = async (req, res) => {
   }
 };
 
-// ── Heartbeat — client pings this every 30s to mark themselves as online ─────
-// Works on Vercel (stateless) because it persists to DB instead of memory.
-// Any user with lastSeen within the last 90 seconds is considered "online".
+// ── Heartbeat — updates lastSeen so other clients can detect this user is online ──
 export const heartbeat = async (req, res) => {
   try {
     await userModel.findByIdAndUpdate(req.user._id, { lastSeen: new Date() });
@@ -204,15 +202,15 @@ export const heartbeat = async (req, res) => {
   }
 };
 
-// ── Get online users (DB-based, works on Vercel) ──────────────────────────────
+// ── Get online users — anyone with lastSeen in the last 90 seconds ────────────
 export const getOnlineUsers = async (req, res) => {
   try {
-    const threshold = new Date(Date.now() - 90_000); // 90 seconds
-    const onlineUsers = await userModel.find(
+    const threshold = new Date(Date.now() - 90_000);
+    const online = await userModel.find(
       { lastSeen: { $gte: threshold }, _id: { $ne: req.user._id } },
       { _id: 1 }
     );
-    res.json({ success: true, onlineIds: onlineUsers.map(u => u._id.toString()) });
+    res.json({ success: true, onlineIds: online.map(u => u._id.toString()) });
   } catch (error) {
     res.json({ success: false, message: error.message });
   }
