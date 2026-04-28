@@ -49,7 +49,14 @@ export const ContextProvider = ({ children }) => {
       return;
     }
 
-    const socket = io(BASE_URL, { query: { userId: authUser._id } });
+    const socket = io(BASE_URL, {
+      query: { userId: authUser._id },
+      // Try WebSocket first, fall back to polling (required for Vercel)
+      transports: ["websocket", "polling"],
+      reconnection: true,
+      reconnectionAttempts: 5,
+      reconnectionDelay: 2000,
+    });
     socketRef.current = socket;
 
     socket.on("onlineUsers", setOnlineUsers);

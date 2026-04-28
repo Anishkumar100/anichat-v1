@@ -1,94 +1,52 @@
 /**
- * ============================================================
- *  lib/socket.js  —  Socket.io Server Setup
- * ============================================================
+ * lib/socket.js — Socket.io Server Setup
  *
- *  🔌 WHAT IS A WEBSOCKET / SOCKET.IO?
+ * VERCEL NOTE:
+ * Vercel's serverless functions don't support persistent WebSocket connections.
+ * Socket.io will automatically fall back to HTTP long-polling on Vercel.
+ * For production real-time features, deploy the server on Railway/Render/Fly.io.
  *
- *  Normal HTTP: Client asks → Server answers → connection closes.
- *  WebSocket:   Client connects ONCE → both sides can talk anytime.
- *
- *  Socket.io is a library built on top of WebSockets.
- *  It adds features like rooms, auto-reconnect, and fallback
- *  to long-polling when WebSockets aren't available.
- *
- *  🧠 HOW THIS FILE WORKS:
- *
- *  1. We create one `io` (Server) instance attached to the HTTP server.
- *  2. We keep a MAP of  userId → socketId  so we know WHERE to deliver
- *     messages to a specific user.
- *  3. When a user logs in on the client, they connect the socket and
- *     send their userId in the handshake query string.
- *  4. We store that, and broadcast who's online to everyone.
- *  5. When they disconnect, we remove them from the map + re-broadcast.
- *
- *  ─────────────────────────────────────────────
- *   userSocketMap = {
- *     "userId_A": "socket123",    ← Alison is online
- *     "userId_B": "socket456",    ← Martin is online
- *   }
- *  ─────────────────────────────────────────────
- *
- *  The controller uses getReceiverSocketId() to find out where
- *  to push a new message in real-time.
+ * The configuration below:
+ *  - Allows both WebSocket and polling transports
+ *  - Sets generous timeouts so polling feels near-real-time
+ *  - Explicitly allows the client origin via CORS
  */
 
 import { Server } from "socket.io";
 
-// ─── Module-level singletons ───────────────────────────────────────────────
-// `io` is exported so controllers can emit events directly.
 let io;
-
-/**
- * userId → socketId mapping.
- * Object (not Map) so Object.keys() gives us online user IDs easily.
- */
 const userSocketMap = {};
 
-// ─── Initialiser ───────────────────────────────────────────────────────────
-/**
- * Call this ONCE from server.js after the HTTP server is created.
- * Returns the io instance (also accessible via the named export).
- *
- * @param {import("http").Server} server  The Node http.Server instance
- */
 export const initSocket = (server) => {
   io = new Server(server, {
     cors: {
-      // Allow all origins in dev; lock this down to your frontend URL in prod
       origin: process.env.CLIENT_URL || "*",
       methods: ["GET", "POST"],
+      credentials: true,
     },
+    // Allow both transports — Vercel will use polling, other hosts use WebSocket
+    transports: ["websocket", "polling"],
+    // Generous timeouts for polling transport
+    pingTimeout:  60000,
+    pingInterval: 25000,
+    // Required for Vercel — allows the upgrade to be attempted
+    allowUpgrades: true,
+    // Path (default /socket.io/) — must match client
+    path: "/socket.io/",
   });
 
-  // ── Event: A new client socket connects ──────────────────────────────────
   io.on("connection", (socket) => {
-    /*
-     *  socket.handshake.query contains everything the client passed
-     *  when calling io("http://...", { query: { userId: "..." } }).
-     *  This is how the server knows WHICH user just connected.
-     */
     const userId = socket.handshake.query.userId;
-
     if (userId) {
-      // Register this user as online
       userSocketMap[userId] = socket.id;
-      console.log(`✅ User connected: ${userId} → socket ${socket.id}`);
-
-      /*
-       *  Broadcast the full list of online user IDs to EVERY connected client.
-       *  The client stores this array in `onlineUsers` state and uses it
-       *  to show the green dot next to user names in the sidebar.
-       */
+      console.log(`✅ User connected: ${userId} → ${socket.id} (${socket.conn.transport.name})`);
       io.emit("onlineUsers", Object.keys(userSocketMap));
     }
 
-    // ── Event: Client disconnects (tab closed, logout, network drop) ────────
     socket.on("disconnect", () => {
       if (userId) {
         delete userSocketMap[userId];
         console.log(`❌ User disconnected: ${userId}`);
-        // Re-broadcast the updated online list
         io.emit("onlineUsers", Object.keys(userSocketMap));
       }
     });
@@ -97,15 +55,5 @@ export const initSocket = (server) => {
   return io;
 };
 
-// ─── Helper used by message/group controllers ──────────────────────────────
-/**
- * Look up the current socket ID for a given user.
- * Returns undefined if the user is offline.
- *
- * @param {string} userId
- * @returns {string | undefined}
- */
 export const getReceiverSocketId = (userId) => userSocketMap[String(userId)];
-
-// Named export so controllers can do:  import { io } from "../lib/socket.js"
 export { io };

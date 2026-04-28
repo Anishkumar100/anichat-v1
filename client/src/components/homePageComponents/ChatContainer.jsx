@@ -486,15 +486,16 @@ export const ChatContainer = () => {
       <ReactPickerPortal /><InputEmojiPortal />
       <div className="h-full flex flex-col overflow-hidden">
         <div className="flex items-center gap-3 py-3 px-3 sm:px-4 border-b border-stone-500 flex-shrink-0">
-          <img src={selectedUser?.profilePic || assets.avatar_icon} alt=""
-            className="w-8 h-8 rounded-full object-cover flex-shrink-0" />
-          <p className="flex-1 text-base sm:text-lg text-white flex items-center gap-2 min-w-0">
-            <span className="truncate">{selectedUser?.fullName}</span>
-            <span className="w-2 h-2 rounded-full bg-green-500 flex-shrink-0" />
-          </p>
+          {/* Back arrow — mobile only, shown LEFT of everything */}
           <img onClick={() => setSelectedUser(null)} src={assets.arrow_icon}
-            className="md:hidden max-w-7 cursor-pointer flex-shrink-0" alt="" />
-          <img src={assets.help_icon} alt="" className="max-md:hidden max-w-5 flex-shrink-0" />
+            className="md:hidden w-6 h-6 cursor-pointer flex-shrink-0" alt="back" />
+          <img src={selectedUser?.profilePic || assets.avatar_icon} alt=""
+            className="w-9 h-9 rounded-full object-cover flex-shrink-0" />
+          <div className="flex-1 min-w-0">
+            <p className="text-white font-medium text-sm sm:text-base truncate">{selectedUser?.fullName}</p>
+            <p className="text-green-400 text-xs">Online</p>
+          </div>
+          <img src={assets.help_icon} alt="" className="max-md:hidden max-w-5 flex-shrink-0 opacity-60" />
         </div>
         {/* flex-1 + overflow-y-auto = proper scroll, never grows past container */}
         <div className="flex-1 overflow-y-auto p-3 sm:p-4 flex flex-col gap-4 min-h-0">
@@ -512,15 +513,15 @@ export const ChatContainer = () => {
       <ReactPickerPortal /><InputEmojiPortal />
       <div className="h-full flex flex-col overflow-hidden">
         <div className="flex items-center gap-3 py-3 px-3 sm:px-4 border-b border-stone-500 flex-shrink-0">
-          <img src={selectedGroup?.groupPic || assets.avatar_icon} alt=""
-            className="w-8 h-8 rounded-full object-cover flex-shrink-0" />
-          <p className="flex-1 text-base sm:text-lg text-white flex items-center gap-2 min-w-0">
-            <span className="truncate">{selectedGroup?.name}</span>
-            <span className="w-2 h-2 rounded-full bg-green-500 flex-shrink-0" />
-          </p>
           <img onClick={() => setSelectedGroup(null)} src={assets.arrow_icon}
-            className="md:hidden max-w-7 cursor-pointer flex-shrink-0" alt="" />
-          <img src={assets.help_icon} alt="" className="max-md:hidden max-w-5 flex-shrink-0" />
+            className="md:hidden w-6 h-6 cursor-pointer flex-shrink-0" alt="back" />
+          <img src={selectedGroup?.groupPic || assets.avatar_icon} alt=""
+            className="w-9 h-9 rounded-full object-cover flex-shrink-0" />
+          <div className="flex-1 min-w-0">
+            <p className="text-white font-medium text-sm sm:text-base truncate">{selectedGroup?.name}</p>
+            <p className="text-gray-400 text-xs">{selectedGroup?.members?.length} members</p>
+          </div>
+          <img src={assets.help_icon} alt="" className="max-md:hidden max-w-5 flex-shrink-0 opacity-60" />
         </div>
         <div className="flex-1 overflow-y-auto p-3 sm:p-4 flex flex-col gap-4 min-h-0">
           {groupMessages.map((msg, i) => renderBubble(msg, i, true))}
