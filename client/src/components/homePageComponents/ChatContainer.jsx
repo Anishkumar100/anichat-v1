@@ -11,11 +11,14 @@ const INPUT_EMOJIS  = [
   "👍","👎","🙏","💪","🫶","❤️","🔥","✨","🎉","💯",
   "🌟","🚀","🎵","🍕","😺","🦋","🌸","⚡","💎","🎯",
 ];
-const STICKER_EMOJIS = [
-  "🐶","🐱","🐸","🐼","🦊","🐨","🐯","🦁","🐮","🐷",
-  "🌈","⭐","🌸","🔥","💫","🎉","🎊","💖","🥳","😎",
-  "👑","🎵","🍕","🍦","🌺","🦋","🌙","✨","🎭","🚀",
-];
+// Built-in sticker packs — grouped by category
+const STICKER_PACKS = {
+  "Animals 🐾": ["🐶","🐱","🐸","🐼","🦊","🐨","🐯","🦁","🐮","🐷","🐧","🦆","🦉","🐺","🦝"],
+  "Vibes ✨":   ["🔥","💯","✨","🎉","🎊","💖","🥳","😎","👑","💫","⚡","🌈","🌟","💎","🎯"],
+  "Food 🍕":   ["🍕","🍦","🍣","🍜","🌮","🍔","🍩","🎂","🍓","🥑","🧁","🍫","🥞","🍟","🍰"],
+  "Nature 🌸": ["🌸","🌺","🌻","🌴","🦋","🌙","🌊","⭐","🍀","🌿","🏔️","🌅","🌈","❄️","🌵"],
+  "Objects 🎵":["🎵","🎸","🚀","🏆","🎮","📸","🎪","🎨","🎭","🎲","🎻","🎬","🎤","🎧","🎡"],
+};
 
 // ─────────────────────────────────────────────────────────────────────────────
 //  CosmosCanvas — natural, smooth cosmic particle field
@@ -188,7 +191,12 @@ export const ChatContainer = () => {
   const [myGifs,       setMyGifs]       = useState(() => {
     try { return JSON.parse(localStorage.getItem("anichat_gifs") || "[]"); } catch { return []; }
   });
+  const [myStickers,   setMyStickers]   = useState(() => {
+    try { return JSON.parse(localStorage.getItem("anichat_stickers") || "[]"); } catch { return []; }
+  });
+  const [stickerPack,  setStickerPack]  = useState(Object.keys(STICKER_PACKS)[0]);
   const [gifUploading, setGifUploading] = useState(false);
+  const [stickerUploading, setStickerUploading] = useState(false);
   const [copyToast,      setCopyToast]      = useState(false);
 
   const scrollEnd    = useRef();
@@ -366,6 +374,30 @@ export const ChatContainer = () => {
     ? myGifs.filter(g => g.name?.toLowerCase().includes(gifSearch.toLowerCase()))
     : myGifs;
 
+  const saveCustomSticker = async (file) => {
+    setStickerUploading(true);
+    try {
+      const b64 = await toBase64(file);
+      const { data } = await axios.post(
+        `${BASE_URL}/api/messages/upload-gif`,  // same endpoint — Cloudinary handles all image types
+        { gif: b64 },
+        { headers: { Authorization: token } }
+      );
+      if (data.success) {
+        const updated = [{ url: data.url, name: file.name, ts: Date.now() }, ...myStickers].slice(0, 80);
+        setMyStickers(updated);
+        localStorage.setItem("anichat_stickers", JSON.stringify(updated));
+      }
+    } catch(e) { console.error("Sticker upload:", e); }
+    finally { setStickerUploading(false); }
+  };
+
+  const deleteCustomSticker = (url) => {
+    const updated = myStickers.filter(s => s.url !== url);
+    setMyStickers(updated);
+    localStorage.setItem("anichat_stickers", JSON.stringify(updated));
+  };
+
   // ── Insert emoji at cursor ────────────────────────────────────────
   const insertEmoji = (emoji) => {
     const el = inputRef.current;
@@ -416,133 +448,233 @@ export const ChatContainer = () => {
     );
   };
 
-  // ── Media panel (emoji / gif / sticker) ───────────────────────────
+  // ── Media panel (emoji / gif / sticker) ─────────────────────────
   const MediaPanelPortal = () => {
     if (!mediaPanel) return null;
-    const btnGrad = isSunMode ? "from-orange-500 to-red-600" : "from-purple-500 to-violet-600";
+    const accent = isSunMode ? "#f97316,#dc2626" : "#7c3aed,#9333ea";
+    const accentSolid = isSunMode ? "#f97316" : "#7c3aed";
 
     return createPortal(
       <div data-media-panel style={{
-        position:"fixed", bottom:"72px", left:"50%", transform:"translateX(-50%)",
-        width:"min(380px, 96vw)", maxHeight:"300px", zIndex:99999,
+        position:"fixed", bottom:"68px", left:"50%", transform:"translateX(-50%)",
+        width:"min(400px, 96vw)", height:"320px", zIndex:99999,
         display:"flex", flexDirection:"column",
-        background:"rgba(18,15,40,0.98)", border:"1px solid rgba(255,255,255,0.12)",
-        borderRadius:"18px", backdropFilter:"blur(20px)",
-        boxShadow:"0 -8px 40px rgba(0,0,0,0.6)", animation:"popIn 0.2s ease-out both",
+        background:"rgba(14,11,34,0.97)", border:"1px solid rgba(255,255,255,0.1)",
+        borderRadius:"20px", backdropFilter:"blur(24px)",
+        boxShadow:"0 -12px 50px rgba(0,0,0,0.7)", animation:"popIn 0.2s ease-out both",
         overflow:"hidden",
       }}>
-        {/* Tab bar */}
-        <div style={{ display:"flex", gap:"4px", padding:"8px 8px 0", flexShrink:0 }}>
-          {["emoji","gif","sticker"].map(tab => (
-            <button key={tab} onClick={() => setMediaPanel(tab)}
+
+        {/* ── Tab Bar ── */}
+        <div style={{ display:"flex", borderBottom:"1px solid rgba(255,255,255,0.08)", flexShrink:0 }}>
+          {[
+            { key:"emoji",   label:"😀", title:"Emoji"    },
+            { key:"gif",     label:"GIF", title:"My GIFs"  },
+            { key:"sticker", label:"🎭", title:"Stickers" },
+          ].map(tab => (
+            <button key={tab.key}
+              onClick={() => setMediaPanel(tab.key)}
               style={{
-                flex:1, padding:"5px 8px", borderRadius:"10px", border:"1px solid transparent",
-                background: "transparent", cursor:"pointer", fontSize:"0.75rem",
-                fontWeight:600, fontFamily:"inherit", transition:"all 0.15s ease",
-                color: mediaPanel === tab ? "white" : "rgba(255,255,255,0.45)",
-                borderColor: mediaPanel === tab ? "rgba(255,255,255,0.2)" : "transparent",
-                backgroundImage: mediaPanel === tab ? `linear-gradient(135deg, ${isSunMode ? "#f97316,#dc2626" : "#7c3aed,#9333ea"})` : undefined,
+                flex:1, padding:"10px 4px", border:"none", cursor:"pointer",
+                background:"transparent", fontFamily:"inherit", fontSize:"0.78rem",
+                fontWeight: mediaPanel === tab.key ? 700 : 400,
+                color: mediaPanel === tab.key ? "white" : "rgba(255,255,255,0.4)",
+                borderBottom: mediaPanel === tab.key ? `2px solid ${accentSolid}` : "2px solid transparent",
+                transition:"all 0.15s ease",
               }}>
-              {tab === "emoji" ? "😀 Emoji" : tab === "gif" ? "🎬 GIFs" : "🎭 Stickers"}
+              {tab.label} {tab.title}
             </button>
           ))}
         </div>
 
-        {/* Content */}
-        <div style={{ flex:1, overflowY:"auto", padding:"8px" }}>
+        {/* ── Content Area ── */}
+        <div style={{ flex:1, overflow:"hidden", display:"flex", flexDirection:"column" }}>
 
-          {/* ── Emoji ── */}
+          {/* ════ EMOJI TAB ════ */}
           {mediaPanel === "emoji" && (
-            <div style={{ display:"flex", flexWrap:"wrap", gap:"2px" }}>
+            <div style={{ flex:1, overflowY:"auto", padding:"8px",
+              display:"flex", flexWrap:"wrap", gap:"2px", alignContent:"flex-start" }}>
               {INPUT_EMOJIS.map(em => (
                 <div key={em} onClick={() => insertEmoji(em)}
-                  style={{ fontSize:"1.4rem", width:"38px", height:"38px", display:"flex",
+                  style={{ fontSize:"1.5rem", width:"40px", height:"40px", display:"flex",
                     alignItems:"center", justifyContent:"center", borderRadius:"8px",
-                    cursor:"pointer", userSelect:"none", transition:"transform 0.12s ease" }}
-                  onMouseEnter={e => { e.currentTarget.style.transform="scale(1.35)"; e.currentTarget.style.background="rgba(255,255,255,0.08)"; }}
+                    cursor:"pointer", userSelect:"none", transition:"transform 0.12s ease, background 0.1s" }}
+                  onMouseEnter={e => { e.currentTarget.style.transform="scale(1.3)"; e.currentTarget.style.background="rgba(255,255,255,0.1)"; }}
                   onMouseLeave={e => { e.currentTarget.style.transform="scale(1)"; e.currentTarget.style.background="transparent"; }}
                 >{em}</div>
               ))}
             </div>
           )}
 
-          {/* ── Personal GIF Gallery ── */}
+          {/* ════ GIF TAB ════ */}
           {mediaPanel === "gif" && (
-            <div style={{ display:"flex", flexDirection:"column", gap:"8px" }}>
-              {/* Search + upload */}
-              <div style={{ display:"flex", gap:"6px", alignItems:"center" }}>
+            <div style={{ flex:1, display:"flex", flexDirection:"column", overflow:"hidden" }}>
+              {/* Top bar */}
+              <div style={{ display:"flex", gap:"6px", padding:"8px 8px 6px", flexShrink:0 }}>
                 <input value={gifSearch} onChange={e => setGifSearch(e.target.value)}
-                  placeholder="Search your GIFs…"
+                  placeholder="Search your saved GIFs…"
                   style={{ flex:1, padding:"6px 10px", background:"rgba(255,255,255,0.08)",
-                    border:"1px solid rgba(255,255,255,0.15)", borderRadius:"8px",
+                    border:"1px solid rgba(255,255,255,0.12)", borderRadius:"8px",
                     color:"white", fontSize:"0.75rem", outline:"none", fontFamily:"inherit" }} />
-                {/* Upload a new GIF */}
-                <label style={{ cursor:"pointer", flexShrink:0 }}>
+                <label title="Upload a GIF from your device" style={{ flexShrink:0, cursor:"pointer" }}>
                   <input type="file" accept="image/gif,image/webp" hidden
-                    onChange={e => { const f=e.target.files[0]; if(f) saveGifToGallery(f); e.target.value=""; }} />
-                  <div style={{ padding:"6px 10px", borderRadius:"8px", border:"none",
-                    backgroundImage:`linear-gradient(135deg, ${isSunMode?"#f97316,#dc2626":"#7c3aed,#9333ea"})`,
-                    color:"white", cursor:"pointer", fontSize:"0.75rem", fontFamily:"inherit",
-                    display:"flex", alignItems:"center", gap:"4px", whiteSpace:"nowrap" }}>
-                    {gifUploading ? "⏳" : "＋ Add GIF"}
+                    onChange={e => { const f=e.target.files[0]; if(f){ saveGifToGallery(f); } e.target.value=""; }} />
+                  <div style={{ padding:"6px 12px", borderRadius:"8px", border:"none", cursor:"pointer",
+                    backgroundImage:`linear-gradient(135deg,${accent})`, color:"white",
+                    fontSize:"0.75rem", fontFamily:"inherit", whiteSpace:"nowrap",
+                    display:"flex", alignItems:"center", gap:"4px" }}>
+                    {gifUploading ? "⏳" : "＋ Add"}
                   </div>
                 </label>
               </div>
 
-              {filteredGifs.length === 0 && (
-                <div style={{ textAlign:"center", padding:"20px 0", color:"rgba(255,255,255,0.3)", fontSize:"0.8rem" }}>
-                  <div style={{ fontSize:"2rem", marginBottom:"8px" }}>🎬</div>
-                  <p>Your GIF gallery is empty.</p>
-                  <p style={{ fontSize:"0.7rem", marginTop:"4px", opacity:0.6 }}>
-                    Upload GIF files with the "+ Add GIF" button above.
-                  </p>
-                </div>
-              )}
-
-              {filteredGifs.length > 0 && (
-                <div style={{ display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:"4px" }}>
-                  {filteredGifs.map((gif, i) => (
-                    <div key={i} style={{ position:"relative", aspectRatio:"1" }}
-                      onMouseEnter={e => e.currentTarget.querySelector(".del-btn").style.opacity="1"}
-                      onMouseLeave={e => e.currentTarget.querySelector(".del-btn").style.opacity="0"}>
-                      <img src={gif.url} alt={gif.name}
-                        onClick={() => { sendMedia(gif.url); setMediaPanel(null); }}
-                        style={{ width:"100%", height:"100%", objectFit:"cover",
-                          borderRadius:"8px", cursor:"pointer", display:"block" }} />
-                      <button className="del-btn"
-                        onClick={e => { e.stopPropagation(); deleteFromGallery(gif.url); }}
-                        style={{ position:"absolute", top:"3px", right:"3px", opacity:0,
-                          width:"18px", height:"18px", borderRadius:"50%", border:"none",
-                          background:"rgba(0,0,0,0.7)", color:"white", cursor:"pointer",
-                          display:"flex", alignItems:"center", justifyContent:"center",
-                          fontSize:"0.6rem", transition:"opacity 0.15s ease", lineHeight:1 }}>✕</button>
-                    </div>
-                  ))}
-                </div>
-              )}
+              {/* GIF Grid */}
+              <div style={{ flex:1, overflowY:"auto", padding:"0 8px 8px" }}>
+                {filteredGifs.length === 0 ? (
+                  <div style={{ display:"flex", flexDirection:"column", alignItems:"center",
+                    justifyContent:"center", height:"100%", gap:"8px",
+                    color:"rgba(255,255,255,0.25)", fontSize:"0.8rem", textAlign:"center", padding:"0 20px" }}>
+                    <span style={{ fontSize:"2.5rem" }}>🎬</span>
+                    <p style={{ fontWeight:600 }}>No GIFs saved yet</p>
+                    <p style={{ fontSize:"0.7rem", lineHeight:1.5 }}>
+                      Click <strong>＋ Add</strong> to upload a GIF from your device.<br/>
+                      It uploads to Cloudinary and lives here permanently.
+                    </p>
+                  </div>
+                ) : (
+                  <div style={{ display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:"5px" }}>
+                    {filteredGifs.map((gif, i) => (
+                      <div key={i} style={{ position:"relative", aspectRatio:"1", borderRadius:"8px", overflow:"hidden",
+                        background:"rgba(255,255,255,0.05)" }}
+                        onMouseEnter={e => { const b=e.currentTarget.querySelector(".gif-del"); if(b) b.style.opacity="1"; }}
+                        onMouseLeave={e => { const b=e.currentTarget.querySelector(".gif-del"); if(b) b.style.opacity="0"; }}>
+                        <img src={gif.url} alt={gif.name}
+                          onClick={() => { sendMedia(gif.url); setMediaPanel(null); }}
+                          style={{ width:"100%", height:"100%", objectFit:"cover", cursor:"pointer", display:"block" }} />
+                        <button className="gif-del"
+                          onClick={e => { e.stopPropagation(); deleteFromGallery(gif.url); }}
+                          style={{ position:"absolute", top:"4px", right:"4px", opacity:0,
+                            width:"20px", height:"20px", borderRadius:"50%", border:"none",
+                            background:"rgba(0,0,0,0.75)", color:"white", cursor:"pointer",
+                            fontSize:"0.65rem", display:"flex", alignItems:"center",
+                            justifyContent:"center", transition:"opacity 0.15s", lineHeight:1 }}>✕</button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
           )}
 
-          {/* ── Sticker gallery ── */}
+          {/* ════ STICKER TAB ════ */}
           {mediaPanel === "sticker" && (
-            <div style={{ display:"flex", flexWrap:"wrap", gap:"4px" }}>
-              {STICKER_EMOJIS.map(em => (
-                <div key={em}
-                  onClick={() => {
-                    // Send sticker as a large text message
-                    if (selectedUser)  sendDM(em, null);
-                    else if (selectedGroup) sendGroup(em, null);
-                    setMediaPanel(null);
-                  }}
-                  style={{ fontSize:"2rem", width:"52px", height:"52px", display:"flex",
-                    alignItems:"center", justifyContent:"center", borderRadius:"10px",
-                    cursor:"pointer", userSelect:"none", transition:"transform 0.15s ease" }}
-                  onMouseEnter={e => { e.currentTarget.style.transform="scale(1.25)"; e.currentTarget.style.background="rgba(255,255,255,0.08)"; }}
-                  onMouseLeave={e => { e.currentTarget.style.transform="scale(1)"; e.currentTarget.style.background="transparent"; }}
-                >{em}</div>
-              ))}
+            <div style={{ flex:1, display:"flex", flexDirection:"column", overflow:"hidden" }}>
+              {/* Pack selector tabs */}
+              <div style={{ display:"flex", gap:"4px", padding:"6px 8px", flexShrink:0,
+                overflowX:"auto", borderBottom:"1px solid rgba(255,255,255,0.06)" }}>
+                {/* Custom sticker pack tab */}
+                <button
+                  onClick={() => setStickerPack("custom")}
+                  style={{ padding:"4px 10px", borderRadius:"20px", border:"1px solid",
+                    cursor:"pointer", fontSize:"0.68rem", whiteSpace:"nowrap", fontFamily:"inherit",
+                    transition:"all 0.15s", flexShrink:0,
+                    background: stickerPack === "custom" ? `linear-gradient(135deg,${accent})` : "rgba(255,255,255,0.06)",
+                    borderColor: stickerPack === "custom" ? "transparent" : "rgba(255,255,255,0.1)",
+                    color: "white" }}>
+                  ⭐ My Stickers
+                </button>
+                {Object.keys(STICKER_PACKS).map(pack => (
+                  <button key={pack}
+                    onClick={() => setStickerPack(pack)}
+                    style={{ padding:"4px 10px", borderRadius:"20px", border:"1px solid",
+                      cursor:"pointer", fontSize:"0.68rem", whiteSpace:"nowrap", fontFamily:"inherit",
+                      transition:"all 0.15s", flexShrink:0,
+                      background: stickerPack === pack ? `linear-gradient(135deg,${accent})` : "rgba(255,255,255,0.06)",
+                      borderColor: stickerPack === pack ? "transparent" : "rgba(255,255,255,0.1)",
+                      color:"white" }}>
+                    {pack}
+                  </button>
+                ))}
+              </div>
+
+              {/* Sticker grid */}
+              <div style={{ flex:1, overflowY:"auto", padding:"8px" }}>
+
+                {/* Custom sticker pack */}
+                {stickerPack === "custom" && (
+                  <div style={{ display:"flex", flexDirection:"column", gap:"8px" }}>
+                    {/* Upload button */}
+                    <label style={{ display:"flex", alignItems:"center", gap:"8px", cursor:"pointer",
+                      padding:"8px 12px", borderRadius:"10px", border:"1px dashed rgba(255,255,255,0.2)",
+                      transition:"border-color 0.15s", background:"rgba(255,255,255,0.03)" }}
+                      onMouseEnter={e => e.currentTarget.style.borderColor="rgba(255,255,255,0.4)"}
+                      onMouseLeave={e => e.currentTarget.style.borderColor="rgba(255,255,255,0.2)"}>
+                      <input type="file" accept="image/png,image/jpeg,image/gif,image/webp" hidden
+                        onChange={e => { const f=e.target.files[0]; if(f){ saveCustomSticker(f); } e.target.value=""; }} />
+                      <span style={{ fontSize:"1.5rem" }}>{stickerUploading ? "⏳" : "＋"}</span>
+                      <div>
+                        <p style={{ color:"rgba(255,255,255,0.8)", fontSize:"0.78rem", fontWeight:600 }}>
+                          {stickerUploading ? "Uploading…" : "Add Custom Sticker"}
+                        </p>
+                        <p style={{ color:"rgba(255,255,255,0.3)", fontSize:"0.65rem", marginTop:"2px" }}>
+                          PNG, JPG, GIF or WebP · saved to your account
+                        </p>
+                      </div>
+                    </label>
+
+                    {myStickers.length === 0 ? (
+                      <p style={{ color:"rgba(255,255,255,0.25)", fontSize:"0.75rem",
+                        textAlign:"center", padding:"16px 0" }}>
+                        No custom stickers yet. Upload one above!
+                      </p>
+                    ) : (
+                      <div style={{ display:"grid", gridTemplateColumns:"repeat(4,1fr)", gap:"5px" }}>
+                        {myStickers.map((s, i) => (
+                          <div key={i} style={{ position:"relative", aspectRatio:"1", borderRadius:"8px",
+                            overflow:"hidden", background:"rgba(255,255,255,0.05)" }}
+                            onMouseEnter={e => { const b=e.currentTarget.querySelector(".s-del"); if(b) b.style.opacity="1"; }}
+                            onMouseLeave={e => { const b=e.currentTarget.querySelector(".s-del"); if(b) b.style.opacity="0"; }}>
+                            <img src={s.url} alt={s.name}
+                              onClick={() => { sendMedia(s.url); setMediaPanel(null); }}
+                              style={{ width:"100%", height:"100%", objectFit:"contain",
+                                cursor:"pointer", display:"block", padding:"4px" }} />
+                            <button className="s-del"
+                              onClick={e => { e.stopPropagation(); deleteCustomSticker(s.url); }}
+                              style={{ position:"absolute", top:"3px", right:"3px", opacity:0,
+                                width:"18px", height:"18px", borderRadius:"50%", border:"none",
+                                background:"rgba(0,0,0,0.75)", color:"white", cursor:"pointer",
+                                fontSize:"0.6rem", display:"flex", alignItems:"center",
+                                justifyContent:"center", transition:"opacity 0.15s", lineHeight:1 }}>✕</button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Built-in emoji sticker packs */}
+                {stickerPack !== "custom" && STICKER_PACKS[stickerPack] && (
+                  <div style={{ display:"flex", flexWrap:"wrap", gap:"4px" }}>
+                    {STICKER_PACKS[stickerPack].map(em => (
+                      <div key={em}
+                        onClick={() => {
+                          if (selectedUser)       sendDM(em, null);
+                          else if (selectedGroup) sendGroup(em, null);
+                          setMediaPanel(null);
+                        }}
+                        style={{ fontSize:"2.2rem", width:"56px", height:"56px", display:"flex",
+                          alignItems:"center", justifyContent:"center", borderRadius:"12px",
+                          cursor:"pointer", userSelect:"none", transition:"transform 0.15s ease, background 0.12s" }}
+                        onMouseEnter={e => { e.currentTarget.style.transform="scale(1.22)"; e.currentTarget.style.background="rgba(255,255,255,0.08)"; }}
+                        onMouseLeave={e => { e.currentTarget.style.transform="scale(1)"; e.currentTarget.style.background="transparent"; }}
+                      >{em}</div>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
           )}
+
         </div>
       </div>,
       document.body

@@ -51,13 +51,23 @@ export const ContextProvider = ({ children }) => {
       return;
     }
 
+    // Detect Vercel deployment — Vercel's infrastructure blocks WebSocket upgrades
+    // at the load-balancer level. Using polling-only prevents the infinite
+    // failed-WebSocket-retry loop. Polling works perfectly and is near-real-time.
+    const isVercel = window.location.hostname.includes("vercel.app") ||
+                     BASE_URL.includes("vercel.app");
+
     const socket = io(BASE_URL, {
       query: { userId: authUser._id },
-      transports: ["websocket", "polling"],
+      // On Vercel: polling only (WebSocket is blocked at infra level)
+      // On other hosts (Railway, Render, local): try WebSocket first
+      transports: isVercel ? ["polling"] : ["websocket", "polling"],
       reconnection: true,
-      reconnectionAttempts: 10,
-      reconnectionDelay: 1000,
-      timeout: 20000,
+      reconnectionAttempts: isVercel ? 20 : 10,  // polling reconnects faster
+      reconnectionDelay: 1500,
+      timeout: 30000,
+      // Prevent WebSocket upgrade attempts on Vercel (causes console spam)
+      upgrade: !isVercel,
     });
     socketRef.current = socket;
 
