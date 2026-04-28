@@ -199,8 +199,9 @@ export const ChatContainer = () => {
   const [stickerUploading, setStickerUploading] = useState(false);
   const [copyToast,      setCopyToast]      = useState(false);
 
-  const scrollEnd    = useRef();
-  const inputRef     = useRef();
+  const scrollEnd        = useRef();
+  const inputRef         = useRef();
+  const mediaBtnRef      = useRef();   // used to position the media panel
 
   useEffect(() => { scrollEnd.current?.scrollIntoView({ behavior: "smooth" }); }, [messages, groupMessages]);
 
@@ -456,7 +457,12 @@ export const ChatContainer = () => {
 
     return createPortal(
       <div data-media-panel style={{
-        position:"fixed", bottom:"68px", left:"50%", transform:"translateX(-50%)",
+        position:"fixed",
+        // Position above the emoji button, centred on it horizontally
+        bottom: mediaBtnRef.current
+          ? `${window.innerHeight - mediaBtnRef.current.getBoundingClientRect().top + 8}px`
+          : "72px",
+        left:"50%", transform:"translateX(-50%)",
         width:"min(400px, 96vw)", height:"320px", zIndex:99999,
         display:"flex", flexDirection:"column",
         background:"rgba(14,11,34,0.97)", border:"1px solid rgba(255,255,255,0.1)",
@@ -814,6 +820,7 @@ export const ChatContainer = () => {
         <div className="flex w-full items-center gap-1">
           {/* Emoji/GIF/Sticker toggle */}
           <button
+            ref={mediaBtnRef}
             data-media-toggle
             onClick={() => setMediaPanel(p => p ? null : "emoji")}
             className="text-lg flex-shrink-0 transition-opacity px-1 opacity-70 hover:opacity-100"
