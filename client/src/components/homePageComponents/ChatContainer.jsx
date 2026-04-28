@@ -165,7 +165,7 @@ export const ChatContainer = () => {
     selectedGroup, setSelectedGroup,
     messages,      setMessages,
     groupMessages, setGroupMessages,
-    isSunMode,
+    isSunMode,isUserOnline
   } = useAppContext();
 
   const [inputText,     setInputText]     = useState("");

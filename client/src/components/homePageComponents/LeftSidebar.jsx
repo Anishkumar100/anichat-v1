@@ -16,7 +16,7 @@ export const LeftSidebar = ({ setBg, bg }) => {
     onlineUsers,
     unseenMessages, setUnseenMessages,
     createGrp, setCreateGrp,
-    isSunMode,   // ← theme flag from context
+    isSunMode,isUserOnline   // ← theme flag from context
   } = useAppContext();
 
   const [search, setSearch] = useState("");
