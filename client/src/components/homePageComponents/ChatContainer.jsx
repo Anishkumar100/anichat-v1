@@ -833,10 +833,36 @@ export const ChatContainer = () => {
           </label>
         </div>
       </div>
-      <img src={assets.send_button} alt="send"
-        className={`w-7 cursor-pointer flex-shrink-0 ${sending ? "opacity-50" : ""}`}
-        style={{ filter: iconFilter }}
-        onClick={!sending ? onSend : undefined} />
+      {/* Send button — inline SVG, fully theme-aware, no extra dependency */}
+      <button
+        onClick={!sending ? onSend : undefined}
+        disabled={sending}
+        style={{
+          width:"40px", height:"40px", borderRadius:"50%", border:"none",
+          backgroundImage: isSunMode
+            ? "linear-gradient(135deg, #f97316, #dc2626)"
+            : "linear-gradient(135deg, #7c3aed, #9333ea)",
+          display:"flex", alignItems:"center", justifyContent:"center",
+          cursor: sending ? "not-allowed" : "pointer",
+          opacity: sending ? 0.5 : 1,
+          transition:"transform 0.15s ease, box-shadow 0.2s ease",
+          boxShadow: isSunMode
+            ? "0 4px 16px rgba(249,115,22,0.4)"
+            : "0 4px 16px rgba(124,58,237,0.4)",
+          flexShrink:0,
+        }}
+        onMouseEnter={e => { e.currentTarget.style.transform="scale(1.1)"; }}
+        onMouseLeave={e => { e.currentTarget.style.transform="scale(1)"; }}
+        onMouseDown={e  => { e.currentTarget.style.transform="scale(0.94)"; }}
+        onMouseUp={e    => { e.currentTarget.style.transform="scale(1.1)"; }}
+        title="Send"
+      >
+        {/* Paper-plane send icon */}
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="white"
+          style={{ width:"18px", height:"18px", marginLeft:"2px" }}>
+          <path d="M3.478 2.405a.75.75 0 00-.926.94l2.432 7.905H13.5a.75.75 0 010 1.5H4.984l-2.432 7.905a.75.75 0 00.926.94 60.519 60.519 0 0018.445-8.986.75.75 0 000-1.218A60.517 60.517 0 003.478 2.405z" />
+        </svg>
+      </button>
     </div>
   );
 

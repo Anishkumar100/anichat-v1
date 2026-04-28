@@ -1,12 +1,23 @@
-import React, { createContext, useContext, useEffect, useRef, useState } from "react";
+import React, { createContext, useContext, useEffect, useRef, useState, useCallback } from "react";
 import { io } from "socket.io-client";
 import axios from "axios";
 
 export const BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000";
 export const appContext = createContext();
 
-// Safe string comparison — handles ObjectId objects vs plain strings
 const idEq = (a, b) => a && b && String(a) === String(b);
+
+// ── Detect Vercel at import time ──────────────────────────────────────────
+// Vercel Lambda instances are stateless — each HTTP request can hit a
+// different Lambda process. Socket.io stores session state in memory,
+// so the 2nd polling request goes to a fresh Lambda that has no session → 400.
+// Fix: skip Socket.io entirely on Vercel, use REST polling instead.
+const IS_VERCEL =
+  (typeof window !== "undefined" && window.location.hostname.includes("vercel.app")) ||
+  BASE_URL.includes("vercel.app");
+
+// How often to poll for new messages on Vercel (ms)
+const POLL_INTERVAL = 2500;
 
 export const ContextProvider = ({ children }) => {
   const [authUser, setAuthUser]             = useState(null);
@@ -29,13 +40,16 @@ export const ContextProvider = ({ children }) => {
     : false;
 
   const socketRef        = useRef(null);
+  const pollRef          = useRef(null);   // setInterval handle for Vercel polling
   const selectedUserRef  = useRef(selectedUser);
   const selectedGroupRef = useRef(selectedGroup);
-  // Keep refs always current so socket closures always read latest state
+  const tokenRef         = useRef(token);
+
   useEffect(() => { selectedUserRef.current  = selectedUser;  }, [selectedUser]);
   useEffect(() => { selectedGroupRef.current = selectedGroup; }, [selectedGroup]);
+  useEffect(() => { tokenRef.current         = token;         }, [token]);
 
-  // Restore session on page load
+  // ── Session restore ────────────────────────────────────────────────
   useEffect(() => {
     if (!token) return;
     axios.get(`${BASE_URL}/api/auth/check`, { headers: { Authorization: token } })
@@ -43,128 +57,143 @@ export const ContextProvider = ({ children }) => {
       .catch(logout);
   }, [token]);
 
-  // ── Socket connection ──────────────────────────────────────────────
+  // ── REST polling fallback (Vercel only) ───────────────────────────
+  // Polls the existing REST endpoints instead of WebSocket/Socket.io.
+  // Works because REST is stateless — every Vercel Lambda handles it fine.
+  const startRestPolling = useCallback((tokenVal) => {
+    if (pollRef.current) clearInterval(pollRef.current);
+
+    pollRef.current = setInterval(async () => {
+      try {
+        const headers = { Authorization: tokenRef.current };
+
+        // ── Refresh sidebar user list + unseen counts ──────────────
+        const { data: ud } = await axios.get(`${BASE_URL}/api/messages/users`, { headers });
+        if (ud.success) {
+          setUsers(ud.users);
+          // Update unseen badges without overwriting counts for open chat
+          setUnseenMessages(prev => {
+            const next = { ...prev };
+            Object.entries(ud.unseenMessages || {}).forEach(([uid, cnt]) => {
+              // Only update if this user's chat is NOT currently open
+              if (!idEq(selectedUserRef.current?._id, uid)) next[uid] = cnt;
+              else next[uid] = 0;
+            });
+            return next;
+          });
+        }
+
+        // ── Refresh active DM conversation ─────────────────────────
+        const openUser = selectedUserRef.current;
+        if (openUser) {
+          const { data: md } = await axios.get(
+            `${BASE_URL}/api/messages/${openUser._id}`, { headers }
+          );
+          if (md.success) setMessages(md.messages);
+        }
+
+        // ── Refresh active group conversation ──────────────────────
+        const openGroup = selectedGroupRef.current;
+        if (openGroup) {
+          const { data: gd } = await axios.get(
+            `${BASE_URL}/api/groups/${openGroup._id}/messages`, { headers }
+          );
+          if (gd.success) setGroupMessages(gd.messages);
+        }
+
+        // ── Refresh groups list ────────────────────────────────────
+        const { data: grps } = await axios.get(`${BASE_URL}/api/groups`, { headers });
+        if (grps.success) setGroups(grps.groups);
+
+      } catch { /* silent — network blip */ }
+    }, POLL_INTERVAL);
+  }, []);
+
+  // ── Socket.io (non-Vercel) OR REST polling (Vercel) ───────────────
   useEffect(() => {
     if (!authUser) {
       socketRef.current?.disconnect();
       socketRef.current = null;
+      if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; }
       return;
     }
 
-    // Detect Vercel deployment — Vercel's infrastructure blocks WebSocket upgrades
-    // at the load-balancer level. Using polling-only prevents the infinite
-    // failed-WebSocket-retry loop. Polling works perfectly and is near-real-time.
-    const isVercel = window.location.hostname.includes("vercel.app") ||
-                     BASE_URL.includes("vercel.app");
+    if (IS_VERCEL) {
+      // ── VERCEL PATH: pure REST polling, no socket ─────────────────
+      console.log("Vercel detected — using REST polling for real-time updates");
+      startRestPolling(token);
+      return () => { if (pollRef.current) clearInterval(pollRef.current); };
+    }
 
+    // ── NON-VERCEL PATH: Socket.io ────────────────────────────────
     const socket = io(BASE_URL, {
       query: { userId: authUser._id },
-      // On Vercel: polling only (WebSocket is blocked at infra level)
-      // On other hosts (Railway, Render, local): try WebSocket first
-      transports: isVercel ? ["polling"] : ["websocket", "polling"],
+      transports: ["websocket", "polling"],
       reconnection: true,
-      reconnectionAttempts: isVercel ? 20 : 10,  // polling reconnects faster
+      reconnectionAttempts: 10,
       reconnectionDelay: 1500,
-      timeout: 30000,
-      // Prevent WebSocket upgrade attempts on Vercel (causes console spam)
-      upgrade: !isVercel,
+      timeout: 20000,
     });
     socketRef.current = socket;
 
-    // ── Online presence ────────────────────────────────────────────
-    socket.on("onlineUsers", (ids) => {
-      // ids = array of plain strings from server
-      setOnlineUsers(ids.map(String));
-    });
+    socket.on("onlineUsers", (ids) => setOnlineUsers(ids.map(String)));
 
-    // ── New DM received ────────────────────────────────────────────
-    socket.on("newMessage", (newMessage) => {
-      // FIX: use idEq for safe ObjectId ↔ string comparison
-      if (idEq(selectedUserRef.current?._id, newMessage.senderId)) {
-        setMessages((p) => [...p, newMessage]);
-        // Also mark as seen immediately if chat is open
+    socket.on("newMessage", (msg) => {
+      if (idEq(selectedUserRef.current?._id, msg.senderId)) {
+        setMessages(p => [...p, msg]);
       } else {
-        const sid = String(newMessage.senderId);
-        setUnseenMessages((p) => ({ ...p, [sid]: (p[sid] || 0) + 1 }));
+        const sid = String(msg.senderId);
+        setUnseenMessages(p => ({ ...p, [sid]: (p[sid] || 0) + 1 }));
       }
     });
 
-    // ── New group message ──────────────────────────────────────────
     socket.on("newGroupMessage", ({ groupId, message }) => {
       if (idEq(selectedGroupRef.current?._id, groupId)) {
-        setGroupMessages((p) => [...p, message]);
+        setGroupMessages(p => [...p, message]);
       } else {
         const key = `group_${groupId}`;
-        setUnseenMessages((p) => ({ ...p, [key]: (p[key] || 0) + 1 }));
+        setUnseenMessages(p => ({ ...p, [key]: (p[key] || 0) + 1 }));
       }
     });
 
-    // ── DM soft deleted ────────────────────────────────────────────
     socket.on("messageDeleted", ({ messageId }) => {
-      setMessages((p) => p.map((m) =>
-        idEq(m._id, messageId) ? { ...m, deleted: true, text: "", image: "" } : m
-      ));
+      setMessages(p => p.map(m => idEq(m._id, messageId) ? { ...m, deleted: true, text: "", image: "" } : m));
     });
-
-    // ── DM hard deleted ────────────────────────────────────────────
     socket.on("messageHardDeleted", ({ messageId }) => {
-      setMessages((p) => p.filter((m) => !idEq(m._id, messageId)));
+      setMessages(p => p.filter(m => !idEq(m._id, messageId)));
     });
-
-    // ── Group message soft deleted ─────────────────────────────────
     socket.on("groupMessageDeleted", ({ messageId }) => {
-      setGroupMessages((p) => p.map((m) =>
-        idEq(m._id, messageId) ? { ...m, deleted: true, text: "", image: "" } : m
-      ));
+      setGroupMessages(p => p.map(m => idEq(m._id, messageId) ? { ...m, deleted: true, text: "", image: "" } : m));
     });
-
-    // ── Group message hard deleted ─────────────────────────────────
     socket.on("groupMessageHardDeleted", ({ messageId }) => {
-      setGroupMessages((p) => p.filter((m) => !idEq(m._id, messageId)));
+      setGroupMessages(p => p.filter(m => !idEq(m._id, messageId)));
     });
-
-    // ── Reactions ──────────────────────────────────────────────────
     socket.on("reactionUpdated", ({ messageId, reactions }) => {
-      setMessages((p) => p.map((m) => idEq(m._id, messageId) ? { ...m, reactions } : m));
+      setMessages(p => p.map(m => idEq(m._id, messageId) ? { ...m, reactions } : m));
     });
     socket.on("groupReactionUpdated", ({ messageId, reactions }) => {
-      setGroupMessages((p) => p.map((m) => idEq(m._id, messageId) ? { ...m, reactions } : m));
+      setGroupMessages(p => p.map(m => idEq(m._id, messageId) ? { ...m, reactions } : m));
     });
-
-    // ── Group updated (name/pic/members) ───────────────────────────
-    socket.on("groupUpdated", (updatedGroup) => {
-      setGroups((p) => p.map((g) => idEq(g._id, updatedGroup._id) ? updatedGroup : g));
-      if (idEq(selectedGroupRef.current?._id, updatedGroup._id)) {
-        setSelectedGroup(updatedGroup);
-      }
+    socket.on("groupUpdated", (g) => {
+      setGroups(p => p.map(x => idEq(x._id, g._id) ? g : x));
+      if (idEq(selectedGroupRef.current?._id, g._id)) setSelectedGroup(g);
     });
-
-    // ── Added to a group you weren't in before ─────────────────────
-    socket.on("newGroup", (group) => {
-      // Prevent duplicates
-      setGroups((p) => {
-        const exists = p.some((g) => idEq(g._id, group._id));
-        return exists ? p.map((g) => idEq(g._id, group._id) ? group : g) : [...p, group];
-      });
+    socket.on("newGroup", (g) => {
+      setGroups(p => p.some(x => idEq(x._id, g._id))
+        ? p.map(x => idEq(x._id, g._id) ? g : x)
+        : [...p, g]
+      );
     });
-
-    // ── Removed from a group ───────────────────────────────────────
     socket.on("removedFromGroup", ({ groupId }) => {
-      setGroups((p) => p.filter((g) => !idEq(g._id, groupId)));
+      setGroups(p => p.filter(g => !idEq(g._id, groupId)));
       if (idEq(selectedGroupRef.current?._id, groupId)) setSelectedGroup(null);
-    });
-
-    // ── Reconnect: re-register userId so presence map is rebuilt ──
-    socket.on("reconnect", () => {
-      console.log("Socket reconnected — re-emitting userId");
     });
 
     return () => { socket.disconnect(); };
   }, [authUser]);
 
   const loginUser = (userData, jwtToken) => {
-    setAuthUser(userData);
-    setToken(jwtToken);
+    setAuthUser(userData); setToken(jwtToken);
     localStorage.setItem("token", jwtToken);
   };
 
@@ -173,8 +202,8 @@ export const ContextProvider = ({ children }) => {
     setMessages([]); setGroupMessages([]); setSelectedUser(null);
     setSelectedGroup(null); setOnlineUsers([]); setUnseenMessages({});
     localStorage.removeItem("token");
-    socketRef.current?.disconnect();
-    socketRef.current = null;
+    socketRef.current?.disconnect(); socketRef.current = null;
+    if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; }
   };
 
   const value = {
@@ -186,6 +215,7 @@ export const ContextProvider = ({ children }) => {
     socket: socketRef.current,
     createGrp, setCreateGrp,
     bg, setBg, isSunMode,
+    isVercel: IS_VERCEL,     // expose so components can show "polling mode" indicator
     axiosConfig: { headers: { Authorization: token } },
   };
 
