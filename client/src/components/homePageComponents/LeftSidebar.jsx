@@ -20,6 +20,8 @@ export const LeftSidebar = ({ setBg, bg }) => {
   } = useAppContext();
 
   const [search, setSearch] = useState("");
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef(null);
 
   // Shared accent helpers — one source of truth for every themed colour in this component
   // dark = purple  |  sun = orange-red
