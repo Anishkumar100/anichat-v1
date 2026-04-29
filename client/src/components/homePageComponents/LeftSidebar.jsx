@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
 import assets from "../../assets/assets";
@@ -28,6 +28,19 @@ export const LeftSidebar = ({ setBg, bg }) => {
   const activeBg    = isSunMode ? "bg-orange-500/15"           : "bg-[#282142]/50";
   const badgeBg     = isSunMode ? "bg-gradient-to-r from-orange-500 to-red-500" : "bg-violet-500/50";
   const toggleDot   = isSunMode ? "bg-yellow-400 text-black"   : "bg-purple-600 text-white";
+
+  // Close dropdown on outside click/tap (works on mobile)
+  useEffect(() => {
+    const handler = (e) => {
+      if (menuRef.current && !menuRef.current.contains(e.target)) setMenuOpen(false);
+    };
+    document.addEventListener("mousedown", handler);
+    document.addEventListener("touchstart", handler);
+    return () => {
+      document.removeEventListener("mousedown", handler);
+      document.removeEventListener("touchstart", handler);
+    };
+  }, []);
 
   useEffect(() => {
     if (!token) return;
@@ -79,15 +92,15 @@ export const LeftSidebar = ({ setBg, bg }) => {
               </div>
             </div>
 
-            <img src={assets.menu_icon} alt="menu" className="max-h-5 cursor-pointer" />
+            <img src={assets.menu_icon} alt="menu" className="max-h-5 cursor-pointer select-none" onClick={() => setMenuOpen(p => !p)} />
 
-            {/* Dropdown */}
-            <div className="absolute top-full right-0 z-20 w-32 p-5 rounded-md bg-[#282142] text-gray-100 hidden group-hover:block">
-              <p onClick={() => navigate("/profile")} className="cursor-pointer text-sm">Edit Profile</p>
+            {/* Dropdown — state controlled, works on touch devices */}
+            <div ref={menuRef} className={`absolute top-full right-0 z-50 w-36 py-2 rounded-md bg-[#282142] text-gray-100 shadow-xl border border-gray-600 ${menuOpen ? "block" : "hidden"}`}>
+              <p onClick={() => { setMenuOpen(false); navigate("/profile"); }} className="cursor-pointer text-sm px-4 py-2 hover:bg-white/10">Edit Profile</p>
               <hr className="my-2 border-t border-gray-500" />
-              <p onClick={() => { setCreateGrp(true); navigate("/new-group"); }} className="cursor-pointer text-sm">Create Group</p>
+              <p onClick={() => { setMenuOpen(false); setCreateGrp(true); navigate("/new-group"); }} className="cursor-pointer text-sm px-4 py-2 hover:bg-white/10">Create Group</p>
               <hr className="my-2 border-t border-gray-500" />
-              <p onClick={logout} className="cursor-pointer text-sm">Logout</p>
+              <p onClick={() => { setMenuOpen(false); logout(); }} className="cursor-pointer text-sm px-4 py-2 hover:bg-white/10 text-red-400">Logout</p>
             </div>
           </div>
         </div>

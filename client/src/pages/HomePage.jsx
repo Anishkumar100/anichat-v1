@@ -8,7 +8,7 @@ export const HomePage = ({ setBg, bg }) => {
   const hasChat = selectedUser || selectedGroup
 
   return (
-    <div className="w-full h-screen">
+    <div className="w-full h-screen" style={{ height: "100dvh" }}>
       <div className={`
         backdrop-blur-xl border border-gray-600 sm:rounded-2xl overflow-hidden h-full
         grid

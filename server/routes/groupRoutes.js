@@ -3,7 +3,7 @@ import { auth } from "../middleware/auth.js";
 import {
   createGroup, getUserGroups, getGroupMessages, sendGroupMessage,
   updateGroup, addMembers, removeMember, promoteToAdmin, leaveGroup,
-  deleteGroupMessage, toggleGroupReaction
+  deleteGroupMessage, toggleGroupReaction, hardDeleteGroupMessage
 } from "../controller/groupController.js";
 
 const groupRouter = express.Router();
@@ -16,6 +16,7 @@ groupRouter.get("/",                         auth, getUserGroups);
 
 // ── Message sub-routes (static "messages" segment first) ────────────
 groupRouter.get("/messages/group/:id",       auth, getGroupMessages);    // alt fallback
+groupRouter.delete("/messages/:id/hard",     auth, hardDeleteGroupMessage);
 groupRouter.delete("/messages/:id",          auth, deleteGroupMessage);
 groupRouter.post("/messages/:id/react",      auth, toggleGroupReaction);
 

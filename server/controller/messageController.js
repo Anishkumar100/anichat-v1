@@ -137,3 +137,39 @@ export const toggleReaction = async (req, res) => {
     res.json({ success: false, message: error.message });
   }
 };
+
+// ── Hard delete (completely removes the document) ─────────────────────────────
+export const hardDeleteMessage = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const userId = req.user._id;
+    const message = await messageModel.findById(id);
+    if (!message) return res.json({ success: false, message: "Not found." });
+    if (message.senderId.toString() !== userId.toString())
+      return res.json({ success: false, message: "You can only delete your own messages." });
+    await messageModel.findByIdAndDelete(id);
+    const receiverSocketId = getReceiverSocketId(message.recieverId.toString());
+    if (receiverSocketId) io.to(receiverSocketId).emit("messageHardDeleted", { messageId: id });
+    const senderSocketId = getReceiverSocketId(userId.toString());
+    if (senderSocketId) io.to(senderSocketId).emit("messageHardDeleted", { messageId: id });
+    res.json({ success: true });
+  } catch (error) {
+    res.json({ success: false, message: error.message });
+  }
+};
+
+// ── Upload GIF/image to Cloudinary (for personal gallery) ────────────────────
+export const uploadGif = async (req, res) => {
+  try {
+    const { gif } = req.body;
+    if (!gif) return res.json({ success: false, message: "No file provided." });
+    const upload = await cloudinary.uploader.upload(gif, {
+      resource_type: "image",
+      format: "gif",
+    });
+    res.json({ success: true, url: upload.secure_url });
+  } catch (error) {
+    console.error("uploadGif error:", error.message);
+    res.json({ success: false, message: error.message });
+  }
+};
