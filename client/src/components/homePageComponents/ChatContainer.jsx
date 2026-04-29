@@ -27,12 +27,7 @@ import { formatMessageTime } from "../../lib/utils";
 import { BASE_URL, useAppContext } from "../../context/ContextProvider";
 
 
-const REACT_EMOJIS = ["❤️","😂","😮","😢","😡","👍","🔥","🎉","💯","✨"];
-const INPUT_EMOJIS = [
-  "😀","😂","😍","😎","🥹","😭","😡","🤔","🥳","😴",
-  "👍","👎","🙏","💪","🫶","❤️","🔥","✨","🎉","💯",
-  "🌟","🚀","🎵","🍕","😺","🦋","🌸","⚡","💎","🎯",
-];
+
 
 // ─────────────────────────────────────────────────────────────────────────────
 //  CosmosCanvas — natural, smooth cosmic particle field
