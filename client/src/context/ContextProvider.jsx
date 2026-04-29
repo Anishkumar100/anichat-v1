@@ -56,7 +56,7 @@ export const ContextProvider = ({ children }) => {
     const uid = String(userId);
     if (onlineUsers.includes(uid)) return true;
     const last = recentActivity.current[uid];
-    return !!(last && Date.now() - last < 90 * 1000);
+    return !!(last && Date.now() - last < 30 * 1000);
   }, [onlineUsers]);
 
   // Session restore

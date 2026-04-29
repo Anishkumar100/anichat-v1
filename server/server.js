@@ -46,7 +46,10 @@ initSocket(server);
 
 // ─── 3. Global Middleware ──────────────────────────────────────────────────
 // Parse JSON request bodies; 10MB limit allows base64-encoded images & GIFs
-app.use(express.json({ limit: "10mb" }));
+// ─── 3. Global Middleware ──────────────────────────────────────────────────
+// Bump limits to 50mb to account for Base64 bloat
+app.use(express.json({ limit: "50mb" }));
+app.use(express.urlencoded({ limit: "50mb", extended: true })); // Add this line!
 
 app.use(
   cors({
