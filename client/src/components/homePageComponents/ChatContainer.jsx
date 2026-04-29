@@ -197,6 +197,7 @@ export const ChatContainer = () => {
   const [stickerPack,     setStickerPack]      = useState(Object.keys(STICKER_PACKS)[0]);
   const [gifUploading,    setGifUploading]     = useState(false);
   const [stickerUploading,setStickerUploading] = useState(false);
+  const [uploadError,     setUploadError]      = useState("");
 
   const scrollEnd = useRef();
   const inputRef  = useRef();
@@ -346,7 +347,7 @@ export const ChatContainer = () => {
 
   // ── GIF gallery ───────────────────────────────────────────────────
   const saveGifToGallery = async (file) => {
-    setGifUploading(true);
+    setGifUploading(true); setUploadError("");
     try {
       const b64 = await toBase64(file);
       const { data } = await axios.post(
@@ -356,8 +357,10 @@ export const ChatContainer = () => {
         const updated = [{ url: data.url, name: file.name, ts: Date.now() }, ...myGifs].slice(0, 50);
         setMyGifs(updated);
         localStorage.setItem("anichat_gifs", JSON.stringify(updated));
+      } else {
+        setUploadError(data.message || "Upload failed"); setTimeout(() => setUploadError(""), 4000);
       }
-    } catch(e) { console.error("GIF upload:", e); }
+    } catch(e) { console.error("GIF upload:", e); setUploadError("Upload failed — file may be too large"); setTimeout(() => setUploadError(""), 4000); }
     finally { setGifUploading(false); }
   };
 
@@ -369,7 +372,7 @@ export const ChatContainer = () => {
 
   // ── Sticker gallery ───────────────────────────────────────────────
   const saveCustomSticker = async (file) => {
-    setStickerUploading(true);
+    setStickerUploading(true); setUploadError("");
     try {
       const b64 = await toBase64(file);
       const { data } = await axios.post(
@@ -379,8 +382,10 @@ export const ChatContainer = () => {
         const updated = [{ url: data.url, name: file.name, ts: Date.now() }, ...myStickers].slice(0, 80);
         setMyStickers(updated);
         localStorage.setItem("anichat_stickers", JSON.stringify(updated));
+      } else {
+        setUploadError(data.message || "Upload failed"); setTimeout(() => setUploadError(""), 4000);
       }
-    } catch(e) { console.error("Sticker upload:", e); }
+    } catch(e) { console.error("Sticker upload:", e); setUploadError("Upload failed — file may be too large"); setTimeout(() => setUploadError(""), 4000); }
     finally { setStickerUploading(false); }
   };
 
@@ -475,6 +480,12 @@ export const ChatContainer = () => {
               }}>{tab.l}</button>
           ))}
         </div>
+        {uploadError && (
+          <div style={{ padding:"6px 12px", background:"rgba(239,68,68,0.15)", borderBottom:"1px solid rgba(239,68,68,0.25)",
+            color:"#fca5a5", fontSize:"0.72rem", textAlign:"center", flexShrink:0 }}>
+            {uploadError}
+          </div>
+        )}
         <div style={{ flex:1, overflow:"hidden", display:"flex", flexDirection:"column" }}>
 
           {/* Emoji */}

@@ -35,6 +35,7 @@ export const ContextProvider = ({ children }) => {
   const socketRef        = useRef(null);
   const pollRef          = useRef(null);
   const heartbeatRef     = useRef(null);
+  const onlinePollRef    = useRef(null);
   const selectedUserRef  = useRef(selectedUser);
   const selectedGroupRef = useRef(selectedGroup);
   const tokenRef         = useRef(token);
@@ -55,7 +56,7 @@ export const ContextProvider = ({ children }) => {
     const uid = String(userId);
     if (onlineUsers.includes(uid)) return true;
     const last = recentActivity.current[uid];
-    return !!(last && Date.now() - last < 5 * 60 * 1000);
+    return !!(last && Date.now() - last < 90 * 1000);
   }, [onlineUsers]);
 
   // Session restore
@@ -139,6 +140,7 @@ export const ContextProvider = ({ children }) => {
       socketRef.current?.disconnect(); socketRef.current = null;
       clearInterval(pollRef.current);      pollRef.current = null;
       clearInterval(heartbeatRef.current); heartbeatRef.current = null;
+      clearInterval(onlinePollRef.current); onlinePollRef.current = null;
       return;
     }
 
@@ -146,7 +148,7 @@ export const ContextProvider = ({ children }) => {
 
     if (IS_VERCEL) {
       startRestPolling();
-      return () => { clearInterval(pollRef.current); clearInterval(heartbeatRef.current); };
+      return () => { clearInterval(pollRef.current); clearInterval(heartbeatRef.current); clearInterval(onlinePollRef.current); };
     }
 
     // ── Full Socket.io (non-Vercel) ───────────────────────────────
@@ -199,7 +201,17 @@ export const ContextProvider = ({ children }) => {
       if (idEq(selectedGroupRef.current?._id, groupId)) setSelectedGroup(null);
     });
 
-    return () => { socket.disconnect(); clearInterval(heartbeatRef.current); };
+    // ── DB-based online polling (safety net — detects offline even if socket misses disconnect) ─
+    const pollOnline = () => {
+      if (!tokenRef.current) return;
+      axios.get(`${BASE_URL}/api/auth/online`, { headers: { Authorization: tokenRef.current } })
+        .then(({ data: ol }) => { if (ol.success) setOnlineUsers(ol.onlineIds); })
+        .catch(() => {});
+    };
+    pollOnline();
+    onlinePollRef.current = setInterval(pollOnline, 30000);
+
+    return () => { socket.disconnect(); clearInterval(heartbeatRef.current); clearInterval(onlinePollRef.current); };
   }, [authUser]);
 
   const loginUser = (userData, jwtToken) => {
@@ -215,6 +227,7 @@ export const ContextProvider = ({ children }) => {
     socketRef.current?.disconnect(); socketRef.current = null;
     clearInterval(pollRef.current);      pollRef.current = null;
     clearInterval(heartbeatRef.current); heartbeatRef.current = null;
+    clearInterval(onlinePollRef.current); onlinePollRef.current = null;
   };
 
   const value = {

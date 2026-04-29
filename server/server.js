@@ -45,8 +45,8 @@ const server = http.createServer(app);
 initSocket(server);
 
 // ─── 3. Global Middleware ──────────────────────────────────────────────────
-// Parse JSON request bodies; 4MB limit allows base64-encoded images
-app.use(express.json({ limit: "4mb" }));
+// Parse JSON request bodies; 10MB limit allows base64-encoded images & GIFs
+app.use(express.json({ limit: "10mb" }));
 
 app.use(
   cors({

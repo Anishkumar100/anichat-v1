@@ -164,8 +164,7 @@ export const uploadGif = async (req, res) => {
     const { gif } = req.body;
     if (!gif) return res.json({ success: false, message: "No file provided." });
     const upload = await cloudinary.uploader.upload(gif, {
-      resource_type: "image",
-      format: "gif",
+      resource_type: "auto",
     });
     res.json({ success: true, url: upload.secure_url });
   } catch (error) {

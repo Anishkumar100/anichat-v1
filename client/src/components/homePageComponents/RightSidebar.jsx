@@ -305,10 +305,12 @@ export const RightSidebar = () => {
       )}
 
       {/* ── Logout ──────────────────────────────────────────────────── */}
-      <button onClick={logout}
-        className={`absolute bottom-5 left-1/2 -translate-x-1/2 text-white border-none text-sm font-light py-2 px-20 rounded-full cursor-pointer bg-gradient-to-r ${btnGrad}`}>
-        Logout
-      </button>
+      <div className="mt-auto flex-shrink-0 py-5 px-5">
+        <button onClick={logout}
+          className={`w-full text-white border-none text-sm font-light py-2 rounded-full cursor-pointer bg-gradient-to-r ${btnGrad}`}>
+          Logout
+        </button>
+      </div>
     </div>
   );
 };
