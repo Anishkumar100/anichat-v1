@@ -34,6 +34,7 @@
  */
 
 import { Server } from "socket.io";
+import userModel from "../models/user.js";
 
 // ─── Module-level singletons ───────────────────────────────────────────────
 // `io` is exported so controllers can emit events directly.
@@ -75,6 +76,9 @@ export const initSocket = (server) => {
       userSocketMap[userId] = socket.id;
       console.log(`✅ User connected: ${userId} → socket ${socket.id}`);
 
+      // Mark online in DB so the safety-net poll also agrees
+      userModel.findByIdAndUpdate(userId, { lastSeen: new Date() }).catch(() => {});
+
       /*
        *  Broadcast the full list of online user IDs to EVERY connected client.
        *  The client stores this array in `onlineUsers` state and uses it
@@ -88,6 +92,10 @@ export const initSocket = (server) => {
       if (userId) {
         delete userSocketMap[userId];
         console.log(`❌ User disconnected: ${userId}`);
+
+        // Clear lastSeen in DB so the safety-net poll won't re-add this user as online
+        userModel.findByIdAndUpdate(userId, { lastSeen: new Date(0) }).catch(() => {});
+
         // Re-broadcast the updated online list
         io.emit("onlineUsers", Object.keys(userSocketMap));
       }
