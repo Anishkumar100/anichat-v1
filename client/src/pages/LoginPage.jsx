@@ -4,9 +4,6 @@ import { useNavigate } from "react-router-dom"
 import assets from "../assets/assets"
 import { BASE_URL, useAppContext } from "../context/ContextProvider"
 
-// ─────────────────────────────────────────────────────────────────────────────
-//  MeteorCanvas — natural physics-based meteor shower (UNTOUCHED)
-// ─────────────────────────────────────────────────────────────────────────────
 const MeteorCanvas = () => {
   const ref = useRef(null)
 
@@ -192,9 +189,6 @@ const MeteorCanvas = () => {
   }, [])
 
   return (
-    // ✅ CHANGE 1: "absolute" → "fixed"
-    // Canvas is now anchored to the viewport, completely out of document flow.
-    // This prevents it from adding height to the page and blocking scroll.
     <canvas ref={ref}
       className="fixed inset-0 w-full h-full pointer-events-none"
       style={{ zIndex: 0, background: 'transparent' }}
@@ -202,7 +196,6 @@ const MeteorCanvas = () => {
   )
 }
 
-// ── LoginPage ─────────────────────────────────────────────────────────────────
 export const LoginPage = () => {
   const navigate = useNavigate()
   const { loginUser } = useAppContext()
@@ -234,23 +227,23 @@ export const LoginPage = () => {
   }
 
   return (
-    // ✅ CHANGE 2: Outer wrapper
-    // - Removed conflicting max-sm flex/justify/pt/pb classes
-    // - Added "overflow-y-auto" so the page scrolls on mobile
-    // - Added "py-10" for consistent vertical breathing room
     <div className='relative min-h-screen bg-cover flex items-center justify-center gap-8 sm:justify-evenly flex-col sm:flex-row overflow-y-auto py-10 backdrop-blur-2xl'>
       <MeteorCanvas />
       <div className="starry-bg-blur" />
 
-      {/* ✅ CHANGE 3: Hero section hidden on mobile (max-sm:hidden)
-          On small screens, skip straight to the form.
-          The meteor/star canvas still shows as the full background. */}
-      <div className="relative z-10 w-full sm:w-1/2 flex-col items-center justify-center text-center px-6 sm:px-10 py-10 hidden sm:flex">
-        <img src={assets.logo} alt="Logo" className="max-w-[240px] sm:max-w-[300px] mb-6 drop-shadow-lg" />
-        <h2 className="text-white text-2xl sm:text-3xl md:text-4xl font-semibold tracking-tight mb-3 leading-tight">
+      {/* Hero — div always rendered; only h2 + p hide on mobile */}
+      <div className="relative z-10 w-full sm:w-1/2 flex flex-col items-center justify-center text-center px-6 sm:px-10 py-6 sm:py-10">
+        {/* Logo always visible on all screen sizes */}
+        <img
+          src={assets.logo}
+          alt="Logo"
+          className="max-w-[180px] sm:max-w-[300px] mb-4 sm:mb-6 drop-shadow-lg"
+        />
+        {/* Text hidden on mobile */}
+        <h2 className="hidden sm:block text-white text-2xl sm:text-3xl md:text-4xl font-semibold tracking-tight mb-3 leading-tight">
           Welcome to <span className="text-red-400">ANICHAT!</span>
         </h2>
-        <p className="text-sm text-gray-300 max-w-xs sm:max-w-sm leading-relaxed">
+        <p className="hidden sm:block text-sm text-gray-300 max-w-xs sm:max-w-sm leading-relaxed">
           Join the community and let's build something extraordinary together.
         </p>
       </div>
