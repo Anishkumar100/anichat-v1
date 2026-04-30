@@ -5,16 +5,7 @@ import assets from "../assets/assets"
 import { BASE_URL, useAppContext } from "../context/ContextProvider"
 
 // ─────────────────────────────────────────────────────────────────────────────
-//  MeteorCanvas — natural physics-based meteor shower
-//
-//  Each meteor has a full life-cycle:
-//   • Born off-screen top-left, travels top-left → bottom-right
-//   • Opacity eases IN over first 8% of journey (no hard pop)
-//   • Opacity eases OUT over last 15% (natural fade, not a cut)
-//   • Two-pass drawing: wide soft glow + narrow bright core
-//   • No ctx.filter blur (causes canvas artifacting / performance issues)
-//   • Max ~3-4 visible at once, staggered by random delays
-//   • Canvas is fully transparent — page bg always shows through
+//  MeteorCanvas — natural physics-based meteor shower (UNTOUCHED)
 // ─────────────────────────────────────────────────────────────────────────────
 const MeteorCanvas = () => {
   const ref = useRef(null)
@@ -32,7 +23,6 @@ const MeteorCanvas = () => {
     resize()
     window.addEventListener('resize', resize)
 
-    // ── Twinkling star field ──────────────────────────────────────────
     const stars = Array.from({ length: 160 }, () => ({
       x: Math.random(), y: Math.random(),
       r: 0.25 + Math.random() * 1.0,
@@ -42,22 +32,17 @@ const MeteorCanvas = () => {
       blue: Math.random() > 0.8,
     }))
 
-    // ── Meteor class ──────────────────────────────────────────────────
     class Meteor {
       constructor(delay) {
-        this.waiting = delay   // seconds before first activation
+        this.waiting = delay
         this.active  = false
         this._reset()
       }
 
       _reset() {
-        // Angle: 35°–50° — consistent left→right diagonal direction
         this.angle = (35 + Math.random() * 15) * Math.PI / 180
-
-        // Speed tier
         const r = Math.random()
         if (r < 0.28) {
-          // Slow / faint — atmospheric background
           this.speed = 110 + Math.random() * 80
           this.width = 0.55 + Math.random() * 0.5
           this.tail  = 65  + Math.random() * 75
@@ -65,7 +50,6 @@ const MeteorCanvas = () => {
           this.glow  = 2.5  + Math.random() * 2
           this.hue   = 235  + Math.random() * 45
         } else if (r < 0.68) {
-          // Medium — the most common
           this.speed = 230 + Math.random() * 170
           this.width = 0.9  + Math.random() * 0.9
           this.tail  = 120  + Math.random() * 110
@@ -73,7 +57,6 @@ const MeteorCanvas = () => {
           this.glow  = 4.5  + Math.random() * 4
           this.hue   = 238  + Math.random() * 55
         } else if (r < 0.92) {
-          // Fast / bright
           this.speed = 460 + Math.random() * 280
           this.width = 1.4  + Math.random() * 1.3
           this.tail  = 190  + Math.random() * 170
@@ -81,7 +64,6 @@ const MeteorCanvas = () => {
           this.glow  = 7    + Math.random() * 5
           this.hue   = 218  + Math.random() * 68
         } else {
-          // Rare comet — slow, long, majestic
           this.speed = 85   + Math.random() * 55
           this.width = 1.9  + Math.random() * 1.8
           this.tail  = 290  + Math.random() * 190
@@ -92,11 +74,9 @@ const MeteorCanvas = () => {
 
         this.dist  = 0
         this.total = Math.sqrt(W * W + H * H) + 280
-
         this.vx = Math.cos(this.angle) * this.speed
         this.vy = Math.sin(this.angle) * this.speed
 
-        // Entry point: left edge (60%) or top edge (40%), biased toward top-left
         if (Math.random() < 0.6) {
           this.x = -(35 + Math.random() * 90)
           this.y = Math.random() * H * 0.65 - 50
@@ -112,22 +92,18 @@ const MeteorCanvas = () => {
           if (this.waiting <= 0) this.active = true
           return
         }
-
         this.x    += this.vx * dt
         this.y    += this.vy * dt
         this.dist += this.speed * dt
-
         if (this.dist >= this.total) {
           this.active  = false
-          this.waiting = 0.9 + Math.random() * 2.8   // gap before next
+          this.waiting = 0.9 + Math.random() * 2.8
           this._reset()
         }
       }
 
       draw() {
         if (!this.active) return
-
-        // Life-cycle opacity: ease-in (0→8%), hold, ease-out (85→100%)
         const p = this.dist / this.total
         let fade
         if (p < 0.08)      fade = p / 0.08
@@ -140,7 +116,6 @@ const MeteorCanvas = () => {
         const tx = this.x - Math.cos(this.angle) * this.tail
         const ty = this.y - Math.sin(this.angle) * this.tail
 
-        // ── Wide soft-glow pass (no filter — pure gradient) ──────────
         const g1 = ctx.createLinearGradient(tx, ty, this.x, this.y)
         g1.addColorStop(0,   `hsla(${this.hue},82%,92%,0)`)
         g1.addColorStop(0.55,`hsla(${this.hue},82%,92%,${alpha * 0.07})`)
@@ -153,7 +128,6 @@ const MeteorCanvas = () => {
         ctx.stroke()
         ctx.restore()
 
-        // ── Narrow bright core ────────────────────────────────────────
         const g2 = ctx.createLinearGradient(tx, ty, this.x, this.y)
         g2.addColorStop(0,    `hsla(${this.hue},100%,98%,0)`)
         g2.addColorStop(0.42, `hsla(${this.hue},100%,98%,${alpha * 0.32})`)
@@ -167,7 +141,6 @@ const MeteorCanvas = () => {
         ctx.stroke()
         ctx.restore()
 
-        // ── Head glow: outer halo ─────────────────────────────────────
         const hR = this.glow * 3.2
         const gh = ctx.createRadialGradient(this.x, this.y, 0, this.x, this.y, hR)
         gh.addColorStop(0,    `hsla(${this.hue},88%,90%,${alpha * 0.42})`)
@@ -178,7 +151,6 @@ const MeteorCanvas = () => {
         ctx.fillStyle = gh; ctx.fill()
         ctx.restore()
 
-        // ── Head glow: bright core point ─────────────────────────────
         const gc = ctx.createRadialGradient(this.x, this.y, 0, this.x, this.y, this.glow)
         gc.addColorStop(0,   `rgba(255,255,255,${alpha})`)
         gc.addColorStop(0.3, `hsla(${this.hue},92%,94%,${alpha * 0.72})`)
@@ -190,7 +162,6 @@ const MeteorCanvas = () => {
       }
     }
 
-    // 13 slots — staggered initial delays so shower populates naturally
     const meteors = Array.from({ length: 13 }, (_, i) =>
       new Meteor(i * 0.38 + Math.random() * 0.25)
     )
@@ -200,10 +171,10 @@ const MeteorCanvas = () => {
 
     const animate = () => {
       const now = performance.now()
-      const dt  = Math.min((now - last) / 1000, 0.05)  // cap at 50ms
+      const dt  = Math.min((now - last) / 1000, 0.05)
       last = now; t += dt
 
-      ctx.clearRect(0, 0, W, H)   // transparent clear
+      ctx.clearRect(0, 0, W, H)
 
       stars.forEach(s => {
         const a = s.base * (0.28 + 0.72 * Math.sin(t * s.spd + s.ph))
@@ -221,8 +192,11 @@ const MeteorCanvas = () => {
   }, [])
 
   return (
+    // ✅ CHANGE 1: "absolute" → "fixed"
+    // Canvas is now anchored to the viewport, completely out of document flow.
+    // This prevents it from adding height to the page and blocking scroll.
     <canvas ref={ref}
-      className="absolute inset-0 w-full h-full pointer-events-none"
+      className="fixed inset-0 w-full h-full pointer-events-none"
       style={{ zIndex: 0, background: 'transparent' }}
     />
   )
@@ -260,10 +234,18 @@ export const LoginPage = () => {
   }
 
   return (
-    <div className='relative min-h-screen bg-cover flex items-center justify-center gap-8 sm:justify-evenly max-sm:flex-col max-sm:items-center max-sm:justify-start max-sm:pt-10 max-sm:pb-10 backdrop-blur-2xl'>
+    // ✅ CHANGE 2: Outer wrapper
+    // - Removed conflicting max-sm flex/justify/pt/pb classes
+    // - Added "overflow-y-auto" so the page scrolls on mobile
+    // - Added "py-10" for consistent vertical breathing room
+    <div className='relative min-h-screen bg-cover flex items-center justify-center gap-8 sm:justify-evenly flex-col sm:flex-row overflow-y-auto py-10 backdrop-blur-2xl'>
       <MeteorCanvas />
       <div className="starry-bg-blur" />
-      <div className="relative z-10 w-full sm:w-1/2 flex flex-col items-center justify-center text-center px-6 sm:px-10 py-10">
+
+      {/* ✅ CHANGE 3: Hero section hidden on mobile (max-sm:hidden)
+          On small screens, skip straight to the form.
+          The meteor/star canvas still shows as the full background. */}
+      <div className="relative z-10 w-full sm:w-1/2 flex-col items-center justify-center text-center px-6 sm:px-10 py-10 hidden sm:flex">
         <img src={assets.logo} alt="Logo" className="max-w-[240px] sm:max-w-[300px] mb-6 drop-shadow-lg" />
         <h2 className="text-white text-2xl sm:text-3xl md:text-4xl font-semibold tracking-tight mb-3 leading-tight">
           Welcome to <span className="text-red-400">ANICHAT!</span>
@@ -272,6 +254,7 @@ export const LoginPage = () => {
           Join the community and let's build something extraordinary together.
         </p>
       </div>
+
       <form onSubmit={onSubmitHandler}
         className='relative z-10 border-2 bg-white/8 text-white border-gray-500 p-5 sm:p-6 flex flex-col gap-4 sm:gap-6 rounded-lg shadow-lg w-[90vw] max-w-sm'>
         <h2 className='font-medium text-2xl flex justify-between items-center'>
