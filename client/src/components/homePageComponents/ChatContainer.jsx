@@ -7,961 +7,999 @@ import { BASE_URL, useAppContext } from "../../context/ContextProvider";
 
 const REACT_EMOJIS = ["❤️", "😂", "😮", "😢", "😡", "👍", "🔥", "🎉", "💯", "✨"];
 const INPUT_EMOJIS = [
-  "😀", "😂", "😍", "😎", "🥹", "😭", "😡", "🤔", "🥳", "😴",
-  "👍", "👎", "🙏", "💪", "🫶", "❤️", "🔥", "✨", "🎉", "💯",
-  "🌟", "🚀", "🎵", "🍕", "😺", "🦋", "🌸", "⚡", "💎", "🎯",
+  "😀", "😂", "😍", "😎", "🥹", "😭", "😡", "🤔", "🥳", "😴",
+  "👍", "👎", "🙏", "💪", "🫶", "❤️", "🔥", "✨", "🎉", "💯",
+  "🌟", "🚀", "🎵", "🍕", "😺", "🦋", "🌸", "⚡", "💎", "🎯",
 ];
 const STICKER_PACKS = {
-  "Animals 🐾": ["🐶", "🐱", "🐸", "🐼", "🦊", "🐨", "🐯", "🦁", "🐮", "🐷", "🐧", "🦆", "🦉", "🐺", "🦝"],
-  "Vibes ✨": ["🔥", "💯", "✨", "🎉", "🎊", "💖", "🥳", "😎", "👑", "💫", "⚡", "🌈", "🌟", "💎", "🎯"],
-  "Food 🍕": ["🍕", "🍦", "🍣", "🍜", "🌮", "🍔", "🍩", "🎂", "🍓", "🥑", "🧁", "🍫", "🥞", "🍟", "🍰"],
-  "Nature 🌸": ["🌸", "🌺", "🌻", "🌴", "🦋", "🌙", "🌊", "⭐", "🍀", "🌿", "🏔️", "🌅", "🌈", "❄️", "🌵"],
-  "Objects 🎵": ["🎵", "🎸", "🚀", "🏆", "🎮", "📸", "🎪", "🎨", "🎭", "🎲", "🎻", "🎬", "🎤", "🎧", "🎡"],
+  "Animals 🐾": ["🐶", "🐱", "🐸", "🐼", "🦊", "🐨", "🐯", "🦁", "🐮", "🐷", "🐧", "🦆", "🦉", "🐺", "🦝"],
+  "Vibes ✨": ["🔥", "💯", "✨", "🎉", "🎊", "💖", "🥳", "😎", "👑", "💫", "⚡", "🌈", "🌟", "💎", "🎯"],
+  "Food 🍕": ["🍕", "🍦", "🍣", "🍜", "🌮", "🍔", "🍩", "🎂", "🍓", "🥑", "🧁", "🍫", "🥞", "🍟", "🍰"],
+  "Nature 🌸": ["🌸", "🌺", "🌻", "🌴", "🦋", "🌙", "🌊", "⭐", "🍀", "🌿", "🏔️", "🌅", "🌈", "❄️", "🌵"],
+  "Objects 🎵": ["🎵", "🎸", "🚀", "🏆", "🎮", "📸", "🎪", "🎨", "🎭", "🎲", "🎻", "🎬", "🎤", "🎧", "🎡"],
 };
 
 
 // ─────────────────────────────────────────────────────────────────────────────
-//  CosmosCanvas — natural, smooth cosmic particle field
+//  CosmosCanvas — natural, smooth cosmic particle field
 //
-//  Layers:
-//    1. Large glowing orbs  (8)  — slow, bright, multi-pass radial glow
-//    2. Medium particles   (20)  — moderate glow, varied hues
-//    3. Dust pinpoints     (60)  — tiny, barely visible, very slow
+//  Layers:
+//    1. Large glowing orbs  (8)  — slow, bright, multi-pass radial glow
+//    2. Medium particles   (20)  — moderate glow, varied hues
+//    3. Dust pinpoints     (60)  — tiny, barely visible, very slow
 //
-//  Each particle has:
-//    • Sinusoidal "wander" — vx/vy shift gently over time (no jitter)
-//    • Breathing opacity   — sine-wave alpha at its own phase/speed
-//    • Soft wrap around edges
-//    • Canvas stays fully transparent — page background shows through
+//  Each particle has:
+//    • Sinusoidal "wander" — vx/vy shift gently over time (no jitter)
+//    • Breathing opacity   — sine-wave alpha at its own phase/speed
+//    • Soft wrap around edges
+//    • Canvas stays fully transparent — page background shows through
 // ─────────────────────────────────────────────────────────────────────────────
 const CosmosCanvas = () => {
-  const ref = useRef(null)
+  const ref = useRef(null)
 
-  useEffect(() => {
-    const canvas = ref.current
-    if (!canvas) return
-    const ctx = canvas.getContext('2d')
-    let raf, W, H
+  useEffect(() => {
+    const canvas = ref.current
+    if (!canvas) return
+    const ctx = canvas.getContext('2d')
+    let raf, W, H
 
-    const resize = () => {
-      W = canvas.width = canvas.offsetWidth
-      H = canvas.height = canvas.offsetHeight
-    }
-    resize()
-    const ro = new ResizeObserver(resize)
-    ro.observe(canvas)
+    const resize = () => {
+      W = canvas.width = canvas.offsetWidth
+      H = canvas.height = canvas.offsetHeight
+    }
+    resize()
+    const ro = new ResizeObserver(resize)
+    ro.observe(canvas)
 
-    const rnd = (a, b) => a + Math.random() * (b - a)
+    const rnd = (a, b) => a + Math.random() * (b - a)
 
-    // Build particle pool
-    const make = (tier) => ({
-      x: rnd(0, W || 600),
-      y: rnd(0, H || 400),
-      // Base drift direction (very slow)
-      angle: rnd(0, Math.PI * 2),
-      // Speed: orbs slower, dust faster (but all imperceptibly slow)
-      spd: tier === 0 ? rnd(0.03, 0.08) : tier === 1 ? rnd(0.06, 0.16) : rnd(0.10, 0.22),
-      // Wander: the angle slowly oscillates, giving organic drift
-      wanderSpd: rnd(0.08, 0.22),
-      wanderAmp: rnd(0.2, 0.5),
-      wanderPhase: rnd(0, Math.PI * 2),
-      // Visual
-      r: tier === 0 ? rnd(3.5, 6.5) : tier === 1 ? rnd(1.5, 3.0) : rnd(0.3, 1.1),
-      hue: rnd(230, 310),          // purple → cyan spectrum
-      base: tier === 0 ? rnd(0.25, 0.55) : tier === 1 ? rnd(0.12, 0.32) : rnd(0.05, 0.18),
-      breathSpd: rnd(0.18, 0.55),
-      breathPhase: rnd(0, Math.PI * 2),
-      tier,
-    })
+    // Build particle pool
+    const make = (tier) => ({
+      x: rnd(0, W || 600),
+      y: rnd(0, H || 400),
+      // Base drift direction (very slow)
+      angle: rnd(0, Math.PI * 2),
+      // Speed: orbs slower, dust faster (but all imperceptibly slow)
+      spd: tier === 0 ? rnd(0.03, 0.08) : tier === 1 ? rnd(0.06, 0.16) : rnd(0.10, 0.22),
+      // Wander: the angle slowly oscillates, giving organic drift
+      wanderSpd: rnd(0.08, 0.22),
+      wanderAmp: rnd(0.2, 0.5),
+      wanderPhase: rnd(0, Math.PI * 2),
+      // Visual
+      r: tier === 0 ? rnd(3.5, 6.5) : tier === 1 ? rnd(1.5, 3.0) : rnd(0.3, 1.1),
+      hue: rnd(230, 310),          // purple → cyan spectrum
+      base: tier === 0 ? rnd(0.25, 0.55) : tier === 1 ? rnd(0.12, 0.32) : rnd(0.05, 0.18),
+      breathSpd: rnd(0.18, 0.55),
+      breathPhase: rnd(0, Math.PI * 2),
+      tier,
+    })
 
-    const orbs = Array.from({ length: 8 }, () => make(0))
-    const mids = Array.from({ length: 20 }, () => make(1))
-    const dust = Array.from({ length: 60 }, () => make(2))
-    const all = [...orbs, ...mids, ...dust]
+    const orbs = Array.from({ length: 8 }, () => make(0))
+    const mids = Array.from({ length: 20 }, () => make(1))
+    const dust = Array.from({ length: 60 }, () => make(2))
+    const all = [...orbs, ...mids, ...dust]
 
-    let t = 0
-    let last = performance.now()
+    let t = 0
+    let last = performance.now()
 
-    const animate = () => {
-      const now = performance.now()
-      const dt = Math.min((now - last) / 1000, 0.05)
-      last = now; t += dt
+    const animate = () => {
+      const now = performance.now()
+      const dt = Math.min((now - last) / 1000, 0.05)
+      last = now; t += dt
 
-      // Transparent clear — never opaque
-      ctx.clearRect(0, 0, W, H)
+      // Transparent clear — never opaque
+      ctx.clearRect(0, 0, W, H)
 
-      all.forEach(p => {
-        // Wander: slowly rotate the drift angle
-        p.angle += Math.sin(t * p.wanderSpd + p.wanderPhase) * p.wanderAmp * dt
+      all.forEach(p => {
+        // Wander: slowly rotate the drift angle
+        p.angle += Math.sin(t * p.wanderSpd + p.wanderPhase) * p.wanderAmp * dt
 
-        p.x += Math.cos(p.angle) * p.spd
-        p.y += Math.sin(p.angle) * p.spd
+        p.x += Math.cos(p.angle) * p.spd
+        p.y += Math.sin(p.angle) * p.spd
 
-        // Soft edge wrap
-        if (p.x < -20) p.x = W + 20
-        if (p.x > W + 20) p.x = -20
-        if (p.y < -20) p.y = H + 20
-        if (p.y > H + 20) p.y = -20
+        // Soft edge wrap
+        if (p.x < -20) p.x = W + 20
+        if (p.x > W + 20) p.x = -20
+        if (p.y < -20) p.y = H + 20
+        if (p.y > H + 20) p.y = -20
 
-        // Breathing alpha
-        const alpha = p.base * (0.3 + 0.7 * Math.sin(t * p.breathSpd + p.breathPhase))
-        if (alpha < 0.005) return
+        // Breathing alpha
+        const alpha = p.base * (0.3 + 0.7 * Math.sin(t * p.breathSpd + p.breathPhase))
+        if (alpha < 0.005) return
 
-        if (p.tier === 0) {
-          // Orb: three-pass glow for deep luminosity
-          // Pass 1 — wide diffuse halo
-          const g1 = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.r * 7)
-          g1.addColorStop(0, `hsla(${p.hue},80%,80%,${alpha * 0.22})`)
-          g1.addColorStop(0.5, `hsla(${p.hue},75%,72%,${alpha * 0.08})`)
-          g1.addColorStop(1, `hsla(${p.hue},65%,60%,0)`)
-          ctx.beginPath(); ctx.arc(p.x, p.y, p.r * 7, 0, Math.PI * 2)
-          ctx.fillStyle = g1; ctx.fill()
+        if (p.tier === 0) {
+          // Orb: three-pass glow for deep luminosity
+          // Pass 1 — wide diffuse halo
+          const g1 = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.r * 7)
+          g1.addColorStop(0, `hsla(${p.hue},80%,80%,${alpha * 0.22})`)
+          g1.addColorStop(0.5, `hsla(${p.hue},75%,72%,${alpha * 0.08})`)
+          g1.addColorStop(1, `hsla(${p.hue},65%,60%,0)`)
+          ctx.beginPath(); ctx.arc(p.x, p.y, p.r * 7, 0, Math.PI * 2)
+          ctx.fillStyle = g1; ctx.fill()
 
-          // Pass 2 — mid glow
-          const g2 = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.r * 3)
-          g2.addColorStop(0, `hsla(${p.hue},88%,88%,${alpha * 0.5})`)
-          g2.addColorStop(0.6, `hsla(${p.hue},80%,78%,${alpha * 0.18})`)
-          g2.addColorStop(1, `hsla(${p.hue},70%,65%,0)`)
-          ctx.beginPath(); ctx.arc(p.x, p.y, p.r * 3, 0, Math.PI * 2)
-          ctx.fillStyle = g2; ctx.fill()
+          // Pass 2 — mid glow
+          const g2 = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.r * 3)
+          g2.addColorStop(0, `hsla(${p.hue},88%,88%,${alpha * 0.5})`)
+          g2.addColorStop(0.6, `hsla(${p.hue},80%,78%,${alpha * 0.18})`)
+          g2.addColorStop(1, `hsla(${p.hue},70%,65%,0)`)
+          ctx.beginPath(); ctx.arc(p.x, p.y, p.r * 3, 0, Math.PI * 2)
+          ctx.fillStyle = g2; ctx.fill()
 
-          // Pass 3 — bright pinpoint core
-          ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2)
-          ctx.fillStyle = `hsla(${p.hue},95%,96%,${alpha})`
-          ctx.fill()
+          // Pass 3 — bright pinpoint core
+          ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2)
+          ctx.fillStyle = `hsla(${p.hue},95%,96%,${alpha})`
+          ctx.fill()
 
-        } else if (p.tier === 1) {
-          // Medium: two-pass
-          const gm = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.r * 4)
-          gm.addColorStop(0, `hsla(${p.hue},80%,85%,${alpha * 0.38})`)
-          gm.addColorStop(0.5, `hsla(${p.hue},72%,75%,${alpha * 0.10})`)
-          gm.addColorStop(1, `hsla(${p.hue},60%,60%,0)`)
-          ctx.beginPath(); ctx.arc(p.x, p.y, p.r * 4, 0, Math.PI * 2)
-          ctx.fillStyle = gm; ctx.fill()
+        } else if (p.tier === 1) {
+          // Medium: two-pass
+          const gm = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.r * 4)
+          gm.addColorStop(0, `hsla(${p.hue},80%,85%,${alpha * 0.38})`)
+          gm.addColorStop(0.5, `hsla(${p.hue},72%,75%,${alpha * 0.10})`)
+          gm.addColorStop(1, `hsla(${p.hue},60%,60%,0)`)
+          ctx.beginPath(); ctx.arc(p.x, p.y, p.r * 4, 0, Math.PI * 2)
+          ctx.fillStyle = gm; ctx.fill()
 
-          ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2)
-          ctx.fillStyle = `hsla(${p.hue},88%,92%,${alpha})`
-          ctx.fill()
+          ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2)
+          ctx.fillStyle = `hsla(${p.hue},88%,92%,${alpha})`
+          ctx.fill()
 
-        } else {
-          // Dust: just a tiny dot
-          ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2)
-          ctx.fillStyle = `hsla(${p.hue},65%,85%,${alpha})`
-          ctx.fill()
-        }
-      })
+        } else {
+          // Dust: just a tiny dot
+          ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2)
+          ctx.fillStyle = `hsla(${p.hue},65%,85%,${alpha})`
+          ctx.fill()
+        }
+      })
 
-      raf = requestAnimationFrame(animate)
-    }
+      raf = requestAnimationFrame(animate)
+    }
 
-    animate()
-    return () => { cancelAnimationFrame(raf); ro.disconnect() }
-  }, [])
+    animate()
+    return () => { cancelAnimationFrame(raf); ro.disconnect() }
+  }, [])
 
-  return (
-    <canvas ref={ref}
-      className="absolute inset-0 w-full h-full pointer-events-none"
-      style={{ background: 'transparent', zIndex: 1 }}
-    />
-  )
+  return (
+    <canvas ref={ref}
+      className="absolute inset-0 w-full h-full pointer-events-none"
+      style={{ background: 'transparent', zIndex: 1 }}
+    />
+  )
 }
 // ─────────────────────────────────────────────────────────────────────────────
 
 export const ChatContainer = () => {
-  const {
-    authUser, token,
-    selectedUser, setSelectedUser,
-    selectedGroup, setSelectedGroup,
-    messages, setMessages,
-    groupMessages, setGroupMessages,
-    onlineUsers, isUserOnline,
-    isSunMode,
-  } = useAppContext();
+  const {
+    authUser, token,
+    selectedUser, setSelectedUser,
+    selectedGroup, setSelectedGroup,
+    messages, setMessages,
+    groupMessages, setGroupMessages,
+    onlineUsers, isUserOnline,
+    isSunMode,
+  } = useAppContext();
 
-  // ── State ─────────────────────────────────────────────────────────
-  const [inputText, setInputText] = useState("");
-  const [imagePreview, setImagePreview] = useState(null);
-  const [imageFile, setImageFile] = useState(null);
-  const [sending, setSending] = useState(false);
-  const [hoveredMsgId, setHoveredMsgId] = useState(null);
-  const [reactPicker, setReactPicker] = useState(null);
-  const [copyToast, setCopyToast] = useState(false);
-  const [mediaPanel, setMediaPanel] = useState(null); // null | "emoji" | "gif" | "sticker"
-  const [gifSearch, setGifSearch] = useState("");
-  const [myGifs, setMyGifs] = useState(() => {
-    try { return JSON.parse(localStorage.getItem("anichat_gifs") || "[]"); } catch { return []; }
-  });
-  const [myStickers, setMyStickers] = useState(() => {
-    try { return JSON.parse(localStorage.getItem("anichat_stickers") || "[]"); } catch { return []; }
-  });
-  const [stickerPack, setStickerPack] = useState(Object.keys(STICKER_PACKS)[0]);
-  const [gifUploading, setGifUploading] = useState(false);
-  const [stickerUploading, setStickerUploading] = useState(false);
-  const [uploadError, setUploadError] = useState("");
+  // ── State ─────────────────────────────────────────────────────────
+  const [inputText, setInputText] = useState("");
+  const [imagePreview, setImagePreview] = useState(null);
+  const [imageFile, setImageFile] = useState(null);
+  const [sending, setSending] = useState(false);
+  const [hoveredMsgId, setHoveredMsgId] = useState(null);
+  const [reactPicker, setReactPicker] = useState(null);
+  const [copyToast, setCopyToast] = useState(false);
+  const [mediaPanel, setMediaPanel] = useState(null); // null | "emoji" | "gif" | "sticker"
+  const [gifSearch, setGifSearch] = useState("");
+  const [myGifs, setMyGifs] = useState(() => {
+    try { return JSON.parse(localStorage.getItem("anichat_gifs") || "[]"); } catch { return []; }
+  });
+  const [myStickers, setMyStickers] = useState(() => {
+    try { return JSON.parse(localStorage.getItem("anichat_stickers") || "[]"); } catch { return []; }
+  });
+  const [stickerPack, setStickerPack] = useState(Object.keys(STICKER_PACKS)[0]);
+  const [gifUploading, setGifUploading] = useState(false);
+  const [stickerUploading, setStickerUploading] = useState(false);
+  const [uploadError, setUploadError] = useState("");
 
-  const scrollEnd = useRef();
-  const inputRef = useRef();
+  const scrollEnd = useRef();
+  const inputRef = useRef();
 
-  useEffect(() => {
-    scrollEnd.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages, groupMessages]);
+  useEffect(() => {
+    scrollEnd.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages, groupMessages]);
 
-  // Close reaction picker on outside click
-  useEffect(() => {
-    const close = (e) => {
-      if (!e.target.closest?.("[data-react-picker]")) setReactPicker(null);
-    };
-    document.addEventListener("mousedown", close);
-    return () => document.removeEventListener("mousedown", close);
-  }, []);
+  // Close reaction picker on outside click
+  useEffect(() => {
+    const close = (e) => {
+      if (!e.target.closest?.("[data-react-picker]")) setReactPicker(null);
+    };
+    document.addEventListener("mousedown", close);
+    return () => document.removeEventListener("mousedown", close);
+  }, []);
 
-  // Load DM messages
-  useEffect(() => {
-    if (!selectedUser || !token) return;
-    setMessages([]);
-    axios.get(`${BASE_URL}/api/messages/${selectedUser._id}`, { headers: { Authorization: token } })
-      .then(({ data }) => { if (data.success) setMessages(data.messages); })
-      .catch(console.error);
-  }, [selectedUser, token]);
+  // Load DM messages
+  useEffect(() => {
+    if (!selectedUser || !token) return;
+    setMessages([]);
+    axios.get(`${BASE_URL}/api/messages/${selectedUser._id}`, { headers: { Authorization: token } })
+      .then(({ data }) => { if (data.success) setMessages(data.messages); })
+      .catch(console.error);
+  }, [selectedUser, token]);
 
-  // Load group messages
-  useEffect(() => {
-    if (!selectedGroup || !token) return;
-    setGroupMessages([]);
-    axios.get(`${BASE_URL}/api/groups/${selectedGroup._id}/messages`, { headers: { Authorization: token } })
-      .then(({ data }) => { if (data.success) setGroupMessages(data.messages); })
-      .catch(console.error);
-  }, [selectedGroup, token]);
+  // Load group messages
+  useEffect(() => {
+    if (!selectedGroup || !token) return;
+    setGroupMessages([]);
+    axios.get(`${BASE_URL}/api/groups/${selectedGroup._id}/messages`, { headers: { Authorization: token } })
+      .then(({ data }) => { if (data.success) setGroupMessages(data.messages); })
+      .catch(console.error);
+  }, [selectedGroup, token]);
 
-  // ── Helpers ───────────────────────────────────────────────────────
-  const toBase64 = (file) => new Promise((res, rej) => {
-    const r = new FileReader(); r.readAsDataURL(file);
-    r.onload = () => res(r.result); r.onerror = rej;
-  });
+  // ── Helpers ───────────────────────────────────────────────────────
+  const toBase64 = (file) => new Promise((res, rej) => {
+    const r = new FileReader(); r.readAsDataURL(file);
+    r.onload = () => res(r.result); r.onerror = rej;
+  });
 
-  const handleFileSelect = (e) => {
-    const file = e.target.files[0]; if (!file) return;
-    setImageFile(file);
-    const r = new FileReader(); r.readAsDataURL(file);
-    r.onload = () => setImagePreview(r.result);
-    e.target.value = "";
-  };
+  const handleFileSelect = (e) => {
+    const file = e.target.files[0]; if (!file) return;
+    setImageFile(file);
+    const r = new FileReader(); r.readAsDataURL(file);
+    r.onload = () => setImagePreview(r.result);
+    e.target.value = "";
+  };
 
-  const filteredGifs = gifSearch
-    ? myGifs.filter(g => g.name?.toLowerCase().includes(gifSearch.toLowerCase()))
-    : myGifs;
+  const filteredGifs = gifSearch
+    ? myGifs.filter(g => g.name?.toLowerCase().includes(gifSearch.toLowerCase()))
+    : myGifs;
 
-  // ── Send ──────────────────────────────────────────────────────────
-  const sendDM = async (textOverride, imgOverride) => {
-    const text = textOverride ?? inputText;
-    const file = imgOverride ?? imageFile;
-    if (!text.trim() && !file) return;
-    setSending(true);
-    try {
-      const img = typeof file === "string" ? file : (file ? await toBase64(file) : null);
-      const { data } = await axios.post(
-        `${BASE_URL}/api/messages/send/${selectedUser._id}`,
-        { text, image: img }, { headers: { Authorization: token } }
-      );
-      if (data.success) {
-        setMessages(p => [...p, data.newMessage]);
-        setInputText(""); setImageFile(null); setImagePreview(null);
-      }
-    } catch (e) { console.error(e); } finally { setSending(false); }
-  };
+  // ── Send ──────────────────────────────────────────────────────────
+  const sendDM = async (textOverride, imgOverride) => {
+    const text = textOverride ?? inputText;
+    const file = imgOverride ?? imageFile;
+    if (!text.trim() && !file) return;
+    setSending(true);
+    try {
+      const img = typeof file === "string" ? file : (file ? await toBase64(file) : null);
+      const { data } = await axios.post(
+        `${BASE_URL}/api/messages/send/${selectedUser._id}`,
+        { text, image: img }, { headers: { Authorization: token } }
+      );
+      if (data.success) {
+        setMessages(p => [...p, data.newMessage]);
+        setInputText(""); setImageFile(null); setImagePreview(null);
+      }
+    } catch (e) { console.error(e); } finally { setSending(false); }
+  };
 
-  const sendGroup = async (textOverride, imgOverride) => {
-    const text = textOverride ?? inputText;
-    const file = imgOverride ?? imageFile;
-    if (!text.trim() && !file) return;
-    setSending(true);
-    try {
-      const img = typeof file === "string" ? file : (file ? await toBase64(file) : null);
-      const { data } = await axios.post(
-        `${BASE_URL}/api/groups/${selectedGroup._id}/messages`,
-        { text, image: img }, { headers: { Authorization: token } }
-      );
-      if (data.success) {
-        setGroupMessages(p => [...p, data.newMessage]);
-        setInputText(""); setImageFile(null); setImagePreview(null);
-      }
-    } catch (e) { console.error(e); } finally { setSending(false); }
-  };
+  const sendGroup = async (textOverride, imgOverride) => {
+    const text = textOverride ?? inputText;
+    const file = imgOverride ?? imageFile;
+    if (!text.trim() && !file) return;
+    setSending(true);
+    try {
+      const img = typeof file === "string" ? file : (file ? await toBase64(file) : null);
+      const { data } = await axios.post(
+        `${BASE_URL}/api/groups/${selectedGroup._id}/messages`,
+        { text, image: img }, { headers: { Authorization: token } }
+      );
+      if (data.success) {
+        setGroupMessages(p => [...p, data.newMessage]);
+        setInputText(""); setImageFile(null); setImagePreview(null);
+      }
+    } catch (e) { console.error(e); } finally { setSending(false); }
+  };
 
-  const doSend = () => selectedUser ? sendDM() : sendGroup();
+  const doSend = () => selectedUser ? sendDM() : sendGroup();
 
-  const sendMedia = (url) => {
-    setMediaPanel(null);
-    if (selectedUser) sendDM(inputText, url);
-    else if (selectedGroup) sendGroup(inputText, url);
-  };
+  const sendMedia = (url) => {
+    setMediaPanel(null);
+    if (selectedUser) sendDM(inputText, url);
+    else if (selectedGroup) sendGroup(inputText, url);
+  };
 
-  // ── Delete ────────────────────────────────────────────────────────
-  const handleDeleteDM = async (msgId) => {
-    const { data } = await axios.delete(`${BASE_URL}/api/messages/${msgId}`, { headers: { Authorization: token } });
-    if (data.success) setMessages(p => p.map(m => m._id === msgId ? { ...m, deleted: true, text: "", image: "" } : m));
-    setHoveredMsgId(null);
-  };
-  const handleHardDeleteDM = async (msgId) => {
-    const { data } = await axios.delete(`${BASE_URL}/api/messages/${msgId}/hard`, { headers: { Authorization: token } });
-    if (data.success) setMessages(p => p.filter(m => m._id !== msgId));
-    setHoveredMsgId(null);
-  };
-  const handleDeleteGroup = async (msgId) => {
-    const { data } = await axios.delete(`${BASE_URL}/api/groups/messages/${msgId}`, { headers: { Authorization: token } });
-    if (data.success) setGroupMessages(p => p.map(m => m._id === msgId ? { ...m, deleted: true, text: "", image: "" } : m));
-    setHoveredMsgId(null);
-  };
-  const handleHardDeleteGroup = async (msgId) => {
-    const { data } = await axios.delete(`${BASE_URL}/api/groups/messages/${msgId}/hard`, { headers: { Authorization: token } });
-    if (data.success) setGroupMessages(p => p.filter(m => m._id !== msgId));
-    setHoveredMsgId(null);
-  };
+  // ── Delete ────────────────────────────────────────────────────────
+  const handleDeleteDM = async (msgId) => {
+    const { data } = await axios.delete(`${BASE_URL}/api/messages/${msgId}`, { headers: { Authorization: token } });
+    if (data.success) setMessages(p => p.map(m => m._id === msgId ? { ...m, deleted: true, text: "", image: "" } : m));
+    setHoveredMsgId(null);
+  };
+  const handleHardDeleteDM = async (msgId) => {
+    const { data } = await axios.delete(`${BASE_URL}/api/messages/${msgId}/hard`, { headers: { Authorization: token } });
+    if (data.success) setMessages(p => p.filter(m => m._id !== msgId));
+    setHoveredMsgId(null);
+  };
+  const handleDeleteGroup = async (msgId) => {
+    const { data } = await axios.delete(`${BASE_URL}/api/groups/messages/${msgId}`, { headers: { Authorization: token } });
+    if (data.success) setGroupMessages(p => p.map(m => m._id === msgId ? { ...m, deleted: true, text: "", image: "" } : m));
+    setHoveredMsgId(null);
+  };
+  const handleHardDeleteGroup = async (msgId) => {
+    const { data } = await axios.delete(`${BASE_URL}/api/groups/messages/${msgId}/hard`, { headers: { Authorization: token } });
+    if (data.success) setGroupMessages(p => p.filter(m => m._id !== msgId));
+    setHoveredMsgId(null);
+  };
 
-  // ── Reactions ─────────────────────────────────────────────────────
-  const handleReactDM = async (msgId, emoji) => {
-    setReactPicker(null);
-    const { data } = await axios.post(`${BASE_URL}/api/messages/${msgId}/react`, { emoji }, { headers: { Authorization: token } });
-    if (data.success) setMessages(p => p.map(m => m._id === msgId ? { ...m, reactions: data.reactions } : m));
-  };
-  const handleReactGroup = async (msgId, emoji) => {
-    setReactPicker(null);
-    const { data } = await axios.post(`${BASE_URL}/api/groups/messages/${msgId}/react`, { emoji }, { headers: { Authorization: token } });
-    if (data.success) setGroupMessages(p => p.map(m => m._id === msgId ? { ...m, reactions: data.reactions } : m));
-  };
+  // ── Reactions ─────────────────────────────────────────────────────
+  const handleReactDM = async (msgId, emoji) => {
+    setReactPicker(null);
+    const { data } = await axios.post(`${BASE_URL}/api/messages/${msgId}/react`, { emoji }, { headers: { Authorization: token } });
+    if (data.success) setMessages(p => p.map(m => m._id === msgId ? { ...m, reactions: data.reactions } : m));
+  };
+  const handleReactGroup = async (msgId, emoji) => {
+    setReactPicker(null);
+    const { data } = await axios.post(`${BASE_URL}/api/groups/messages/${msgId}/react`, { emoji }, { headers: { Authorization: token } });
+    if (data.success) setGroupMessages(p => p.map(m => m._id === msgId ? { ...m, reactions: data.reactions } : m));
+  };
 
-  const openReactPicker = (e, msgId, isMine, isGroup) => {
-    e.stopPropagation();
-    const rect = e.currentTarget.getBoundingClientRect();
-    setReactPicker(prev => prev?.msgId === msgId ? null : { msgId, rect, isMine, isGroup });
-  };
+  const openReactPicker = (e, msgId, isMine, isGroup) => {
+    e.stopPropagation();
+    const rect = e.currentTarget.getBoundingClientRect();
+    setReactPicker(prev => prev?.msgId === msgId ? null : { msgId, rect, isMine, isGroup });
+  };
 
-  // ── Copy ──────────────────────────────────────────────────────────
-  const handleCopy = (text) => {
-    navigator.clipboard?.writeText(text).then(() => {
-      setCopyToast(true);
-      setTimeout(() => setCopyToast(false), 2000);
-    });
-    setHoveredMsgId(null);
-  };
+  // ── Copy ──────────────────────────────────────────────────────────
+  const handleCopy = (text) => {
+    navigator.clipboard?.writeText(text).then(() => {
+      setCopyToast(true);
+      setTimeout(() => setCopyToast(false), 2000);
+    });
+    setHoveredMsgId(null);
+  };
 
-  // ── GIF gallery ───────────────────────────────────────────────────
-  const saveGifToGallery = async (file) => {
-    setGifUploading(true); setUploadError("");
-    try {
-      const b64 = await toBase64(file);
-      const { data } = await axios.post(
-        `${BASE_URL}/api/messages/upload-gif`, { gif: b64 }, { headers: { Authorization: token } }
-      );
-      if (data.success) {
-        const updated = [{ url: data.url, name: file.name, ts: Date.now() }, ...myGifs].slice(0, 50);
-        setMyGifs(updated);
-        localStorage.setItem("anichat_gifs", JSON.stringify(updated));
-      } else {
-        setUploadError(data.message || "Upload failed"); setTimeout(() => setUploadError(""), 4000);
-      }
-    } catch (e) { console.error("GIF upload:", e); setUploadError("Upload failed — file may be too large"); setTimeout(() => setUploadError(""), 4000); }
-    finally { setGifUploading(false); }
-  };
+  // ── GIF gallery ───────────────────────────────────────────────────
+  const saveGifToGallery = async (file) => {
+    console.log("--> [FRONTEND LOG] saveGifToGallery triggered");
+    console.log("--> [FRONTEND LOG] File name:", file.name, "| Size:", (file.size / 1024 / 1024).toFixed(2), "MB");
+    
+    setGifUploading(true); setUploadError("");
+    try {
+      const b64 = await toBase64(file);
+      console.log("--> [FRONTEND LOG] Converted to Base64. Payload string length roughly:", (b64.length / 1024 / 1024).toFixed(2), "MB");
+      console.log("--> [FRONTEND LOG] Sending request to:", `${BASE_URL}/api/messages/upload-gif`);
 
-  const deleteFromGallery = (url) => {
-    const updated = myGifs.filter(g => g.url !== url);
-    setMyGifs(updated);
-    localStorage.setItem("anichat_gifs", JSON.stringify(updated));
-  };
+      const { data } = await axios.post(
+        `${BASE_URL}/api/messages/upload-gif`, { gif: b64 }, { headers: { Authorization: token } }
+      );
+      
+      console.log("--> [FRONTEND LOG] Server response:", data);
 
-  // ── Sticker gallery ───────────────────────────────────────────────
-  const saveCustomSticker = async (file) => {
-    setStickerUploading(true); setUploadError("");
-    try {
-      const b64 = await toBase64(file);
-      const { data } = await axios.post(
-        `${BASE_URL}/api/messages/upload-gif`, { gif: b64 }, { headers: { Authorization: token } }
-      );
-      if (data.success) {
-        const updated = [{ url: data.url, name: file.name, ts: Date.now() }, ...myStickers].slice(0, 80);
-        setMyStickers(updated);
-        localStorage.setItem("anichat_stickers", JSON.stringify(updated));
-      } else {
-        setUploadError(data.message || "Upload failed"); setTimeout(() => setUploadError(""), 4000);
-      }
-    } catch (e) { console.error("Sticker upload:", e); setUploadError("Upload failed — file may be too large"); setTimeout(() => setUploadError(""), 4000); }
-    finally { setStickerUploading(false); }
-  };
+      if (data.success) {
+        const updated = [{ url: data.url, name: file.name, ts: Date.now() }, ...myGifs].slice(0, 50);
+        setMyGifs(updated);
+        localStorage.setItem("anichat_gifs", JSON.stringify(updated));
+      } else {
+        console.error("--> [FRONTEND LOG] Server returned success: false | Message:", data.message);
+        setUploadError(data.message || "Upload failed"); setTimeout(() => setUploadError(""), 4000);
+      }
+    } catch (e) { 
+      console.error("--> [FRONTEND LOG] AXIOS ERROR inside saveGifToGallery:");
+      if (e.response) {
+        console.error("--> [FRONTEND LOG] Error Status:", e.response.status);
+        console.error("--> [FRONTEND LOG] Error Data:", e.response.data);
+      } else {
+        console.error("--> [FRONTEND LOG] Error Message:", e.message);
+      }
+      setUploadError("Upload failed — file may be too large"); 
+      setTimeout(() => setUploadError(""), 4000); 
+    } finally { setGifUploading(false); }
+  };
 
-  const deleteCustomSticker = (url) => {
-    const updated = myStickers.filter(s => s.url !== url);
-    setMyStickers(updated);
-    localStorage.setItem("anichat_stickers", JSON.stringify(updated));
-  };
+  const deleteFromGallery = (url) => {
+    const updated = myGifs.filter(g => g.url !== url);
+    setMyGifs(updated);
+    localStorage.setItem("anichat_gifs", JSON.stringify(updated));
+  };
 
-  // ── Insert emoji at cursor ─────────────────────────────────────────
-  const insertEmoji = (emoji) => {
-    const el = inputRef.current;
-    if (!el) { setInputText(p => p + emoji); return; }
-    const s = el.selectionStart ?? inputText.length;
-    const e = el.selectionEnd ?? inputText.length;
-    setInputText(inputText.slice(0, s) + emoji + inputText.slice(e));
-    setTimeout(() => { el.focus(); el.setSelectionRange(s + emoji.length, s + emoji.length); }, 0);
-  };
+  // ── Sticker gallery ───────────────────────────────────────────────
+  const saveCustomSticker = async (file) => {
+    console.log("--> [FRONTEND LOG] saveCustomSticker triggered");
+    console.log("--> [FRONTEND LOG] File name:", file.name, "| Size:", (file.size / 1024 / 1024).toFixed(2), "MB");
 
-  const handleKey = (e) => {
-    if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); doSend(); }
-  };
+    setStickerUploading(true); setUploadError("");
+    try {
+      const b64 = await toBase64(file);
+      console.log("--> [FRONTEND LOG] Converted to Base64. Payload string length roughly:", (b64.length / 1024 / 1024).toFixed(2), "MB");
+      console.log("--> [FRONTEND LOG] Sending request to:", `${BASE_URL}/api/messages/upload-gif`);
 
-  const iconFilter = isSunMode
-    ? "brightness(0) saturate(100%) invert(45%) sepia(1) hue-rotate(330deg) saturate(4)"
-    : "brightness(0) saturate(100%) invert(60%) sepia(1) hue-rotate(230deg) saturate(3)";
+      const { data } = await axios.post(
+        `${BASE_URL}/api/messages/upload-gif`, { gif: b64 }, { headers: { Authorization: token } }
+      );
 
-  // ── Reaction picker portal ─────────────────────────────────────────
-  const ReactPickerPortal = () => {
-    if (!reactPicker) return null;
-    const { msgId, rect, isMine, isGroup } = reactPicker;
-    const panelW = Math.min(330, window.innerWidth - 16);
-    let left = isMine ? rect.right - panelW : rect.left;
-    left = Math.max(8, Math.min(left, window.innerWidth - panelW - 8));
-    const top = Math.max(8, rect.top - 54);
-    const onReact = isGroup ? em => handleReactGroup(msgId, em) : em => handleReactDM(msgId, em);
-    return createPortal(
-      <div data-react-picker style={{
-        position: "fixed", top: `${top}px`, left: `${left}px`, width: `${panelW}px`, zIndex: 99999,
-        display: "flex", flexWrap: "nowrap", gap: "2px", padding: "6px 8px",
-        background: "rgba(22,19,52,0.98)", border: "1px solid rgba(255,255,255,0.14)",
-        borderRadius: "14px", backdropFilter: "blur(20px)",
-        boxShadow: "0 8px 40px rgba(0,0,0,0.6)", animation: "popIn 0.18s ease-out both",
-      }}>
-        {REACT_EMOJIS.map(em => (
-          <div key={em} onClick={() => onReact(em)}
-            style={{
-              fontSize: "1.2rem", width: "32px", height: "32px", display: "flex",
-              alignItems: "center", justifyContent: "center", borderRadius: "8px",
-              cursor: "pointer", transition: "transform 0.15s ease", userSelect: "none"
-            }}
-            onMouseEnter={e => e.currentTarget.style.transform = "scale(1.45)"}
-            onMouseLeave={e => e.currentTarget.style.transform = "scale(1)"}
-          >{em}</div>
-        ))}
-      </div>,
-      document.body
-    );
-  };
+      console.log("--> [FRONTEND LOG] Server response:", data);
 
-  // ── Copy toast portal ──────────────────────────────────────────────
-  const CopyToast = () => !copyToast ? null : createPortal(
-    <div style={{
-      position: "fixed", bottom: "90px", left: "50%", transform: "translateX(-50%)",
-      padding: "8px 18px", background: "rgba(22,19,52,0.96)", color: "white",
-      borderRadius: "20px", fontSize: "0.8rem", fontFamily: "inherit",
-      border: "1px solid rgba(255,255,255,0.15)", zIndex: 99999,
-      animation: "popIn 0.15s ease-out both", backdropFilter: "blur(12px)",
-      boxShadow: "0 4px 20px rgba(0,0,0,0.4)",
-    }}>✓ Copied to clipboard</div>,
-    document.body
-  );
+      if (data.success) {
+        const updated = [{ url: data.url, name: file.name, ts: Date.now() }, ...myStickers].slice(0, 80);
+        setMyStickers(updated);
+        localStorage.setItem("anichat_stickers", JSON.stringify(updated));
+      } else {
+        console.error("--> [FRONTEND LOG] Server returned success: false | Message:", data.message);
+        setUploadError(data.message || "Upload failed"); setTimeout(() => setUploadError(""), 4000);
+      }
+    } catch (e) { 
+      console.error("--> [FRONTEND LOG] AXIOS ERROR inside saveCustomSticker:");
+      if (e.response) {
+        console.error("--> [FRONTEND LOG] Error Status:", e.response.status);
+        console.error("--> [FRONTEND LOG] Error Data:", e.response.data);
+      } else {
+        console.error("--> [FRONTEND LOG] Error Message:", e.message);
+      }
+      setUploadError("Upload failed — file may be too large"); 
+      setTimeout(() => setUploadError(""), 4000); 
+    } finally { setStickerUploading(false); }
+  };
 
-  // ── Inline media panel (above input bar, no portal positioning issues) ──
-  const MediaPanel = () => {
-    if (!mediaPanel) return null;
-    const accent = isSunMode ? "#f97316,#dc2626" : "#7c3aed,#9333ea";
-    const accentSolid = isSunMode ? "#f97316" : "#7c3aed";
-    return (
-      <div data-media-panel style={{
-        flexShrink: 0, height: "300px", borderTop: "1px solid rgba(255,255,255,0.08)",
-        display: "flex", flexDirection: "column", background: "rgba(14,11,34,0.97)", overflow: "hidden",
-      }}>
-        {/* Tabs */}
-        <div style={{ display: "flex", borderBottom: "1px solid rgba(255,255,255,0.08)", flexShrink: 0 }}>
-          {[{ k: "emoji", l: "😀 Emoji" }, { k: "gif", l: "🎬 GIFs" }, { k: "sticker", l: "🎭 Stickers" }].map(tab => (
-            <button key={tab.k} onClick={() => setMediaPanel(tab.k)}
-              style={{
-                flex: 1, padding: "8px 4px", border: "none", cursor: "pointer",
-                background: "transparent", fontFamily: "inherit", fontSize: "0.78rem",
-                fontWeight: mediaPanel === tab.k ? 700 : 400,
-                color: mediaPanel === tab.k ? "white" : "rgba(255,255,255,0.4)",
-                borderBottom: mediaPanel === tab.k ? `2px solid ${accentSolid}` : "2px solid transparent",
-                transition: "all 0.15s ease",
-              }}>{tab.l}</button>
-          ))}
-        </div>
-        {uploadError && (
-          <div style={{
-            padding: "6px 12px", background: "rgba(239,68,68,0.15)", borderBottom: "1px solid rgba(239,68,68,0.25)",
-            color: "#fca5a5", fontSize: "0.72rem", textAlign: "center", flexShrink: 0
-          }}>
-            {uploadError}
-          </div>
-        )}
-        <div style={{ flex: 1, overflow: "hidden", display: "flex", flexDirection: "column" }}>
+  const deleteCustomSticker = (url) => {
+    const updated = myStickers.filter(s => s.url !== url);
+    setMyStickers(updated);
+    localStorage.setItem("anichat_stickers", JSON.stringify(updated));
+  };
 
-          {/* Emoji */}
-          {mediaPanel === "emoji" && (
-            <div style={{
-              flex: 1, overflowY: "auto", padding: "8px",
-              display: "flex", flexWrap: "wrap", gap: "2px", alignContent: "flex-start"
-            }}>
-              {INPUT_EMOJIS.map(em => (
-                <div key={em} onClick={() => insertEmoji(em)}
-                  style={{
-                    fontSize: "1.5rem", width: "40px", height: "40px", display: "flex",
-                    alignItems: "center", justifyContent: "center", borderRadius: "8px",
-                    cursor: "pointer", userSelect: "none", transition: "transform 0.12s ease, background 0.1s"
-                  }}
-                  onMouseEnter={e => { e.currentTarget.style.transform = "scale(1.3)"; e.currentTarget.style.background = "rgba(255,255,255,0.1)"; }}
-                  onMouseLeave={e => { e.currentTarget.style.transform = "scale(1)"; e.currentTarget.style.background = "transparent"; }}
-                >{em}</div>
-              ))}
-            </div>
-          )}
+  // ── Insert emoji at cursor ─────────────────────────────────────────
+  const insertEmoji = (emoji) => {
+    const el = inputRef.current;
+    if (!el) { setInputText(p => p + emoji); return; }
+    const s = el.selectionStart ?? inputText.length;
+    const e = el.selectionEnd ?? inputText.length;
+    setInputText(inputText.slice(0, s) + emoji + inputText.slice(e));
+    setTimeout(() => { el.focus(); el.setSelectionRange(s + emoji.length, s + emoji.length); }, 0);
+  };
 
-          {/* GIF gallery */}
-          {mediaPanel === "gif" && (
-            <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
-              <div style={{ display: "flex", gap: "6px", padding: "8px 8px 6px", flexShrink: 0 }}>
-                <input value={gifSearch} onChange={e => setGifSearch(e.target.value)}
-                  placeholder="Search your saved GIFs…"
-                  style={{
-                    flex: 1, padding: "6px 10px", background: "rgba(255,255,255,0.08)",
-                    border: "1px solid rgba(255,255,255,0.12)", borderRadius: "8px",
-                    color: "white", fontSize: "0.75rem", outline: "none", fontFamily: "inherit"
-                  }} />
-                <label style={{ flexShrink: 0, cursor: "pointer" }}>
-                  <input type="file" accept="image/gif,image/webp" hidden
-                    onChange={e => { const f = e.target.files[0]; if (f) saveGifToGallery(f); e.target.value = ""; }} />
-                  <div style={{
-                    padding: "6px 12px", borderRadius: "8px", border: "none", cursor: "pointer",
-                    backgroundImage: `linear-gradient(135deg,${accent})`, color: "white",
-                    fontSize: "0.75rem", fontFamily: "inherit", whiteSpace: "nowrap",
-                    display: "flex", alignItems: "center"
-                  }}>
-                    {gifUploading ? "⏳" : "＋ Add GIF"}
-                  </div>
-                </label>
-              </div>
-              <div style={{ flex: 1, overflowY: "auto", padding: "0 8px 8px" }}>
-                {filteredGifs.length === 0 ? (
-                  <div style={{
-                    display: "flex", flexDirection: "column", alignItems: "center",
-                    justifyContent: "center", height: "100%", gap: "8px",
-                    color: "rgba(255,255,255,0.25)", fontSize: "0.8rem", textAlign: "center", padding: "0 20px"
-                  }}>
-                    <span style={{ fontSize: "2.5rem" }}>🎬</span>
-                    <p style={{ fontWeight: 600 }}>No GIFs saved yet</p>
-                    <p style={{ fontSize: "0.7rem", lineHeight: 1.5 }}>Tap <strong>＋ Add GIF</strong> to upload from your device.</p>
-                  </div>
-                ) : (
-                  <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: "5px" }}>
-                    {filteredGifs.map((gif, i) => (
-                      <div key={i} style={{
-                        position: "relative", aspectRatio: "1", borderRadius: "8px",
-                        overflow: "hidden", background: "rgba(255,255,255,0.05)"
-                      }}
-                        onMouseEnter={e => { const b = e.currentTarget.querySelector(".gd"); if (b) b.style.opacity = "1"; }}
-                        onMouseLeave={e => { const b = e.currentTarget.querySelector(".gd"); if (b) b.style.opacity = "0"; }}>
-                        <img src={gif.url} alt={gif.name}
-                          onClick={() => { sendMedia(gif.url); setMediaPanel(null); }}
-                          style={{ width: "100%", height: "100%", objectFit: "cover", cursor: "pointer", display: "block" }} />
-                        <button className="gd" onClick={e => { e.stopPropagation(); deleteFromGallery(gif.url); }}
-                          style={{
-                            position: "absolute", top: "4px", right: "4px", opacity: 0,
-                            width: "20px", height: "20px", borderRadius: "50%", border: "none",
-                            background: "rgba(0,0,0,0.75)", color: "white", cursor: "pointer",
-                            fontSize: "0.65rem", display: "flex", alignItems: "center",
-                            justifyContent: "center", transition: "opacity 0.15s", lineHeight: 1
-                          }}>✕</button>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
+  const handleKey = (e) => {
+    if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); doSend(); }
+  };
 
-          {/* Stickers */}
-          {mediaPanel === "sticker" && (
-            <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
-              <div style={{
-                display: "flex", gap: "4px", padding: "6px 8px", flexShrink: 0,
-                overflowX: "auto", overflowY: "hidden",
-                WebkitOverflowScrolling: "touch", /* Enables smooth momentum scrolling on iOS */
-                touchAction: "pan-x", /* Tells the browser to prioritize horizontal swiping */
-                scrollbarWidth: "none", /* Hides scrollbar on Firefox for cleaner UI */
-                msOverflowStyle: "none", /* Hides scrollbar on IE/Edge */
-                borderBottom: "1px solid rgba(255,255,255,0.06)"
-              }}>
-                <button onClick={() => setStickerPack("custom")}
-                  style={{
-                    padding: "4px 10px", borderRadius: "20px", border: "1px solid",
-                    cursor: "pointer", fontSize: "0.68rem", whiteSpace: "nowrap", fontFamily: "inherit",
-                    flexShrink: 0, transition: "all 0.15s",
-                    background: stickerPack === "custom" ? `linear-gradient(135deg,${accent})` : "rgba(255,255,255,0.06)",
-                    borderColor: stickerPack === "custom" ? "transparent" : "rgba(255,255,255,0.1)",
-                    color: "white"
-                  }}>⭐ Mine</button>
-                {Object.keys(STICKER_PACKS).map(pack => (
-                  <button key={pack} onClick={() => setStickerPack(pack)}
-                    style={{
-                      padding: "4px 10px", borderRadius: "20px", border: "1px solid",
-                      cursor: "pointer", fontSize: "0.68rem", whiteSpace: "nowrap", fontFamily: "inherit",
-                      flexShrink: 0, transition: "all 0.15s",
-                      background: stickerPack === pack ? `linear-gradient(135deg,${accent})` : "rgba(255,255,255,0.06)",
-                      borderColor: stickerPack === pack ? "transparent" : "rgba(255,255,255,0.1)",
-                      color: "white"
-                    }}>{pack}</button>
-                ))}
-              </div>
-              <div style={{ flex: 1, overflowY: "auto", padding: "8px" }}>
-                {stickerPack === "custom" && (
-                  <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-                    <label style={{
-                      display: "flex", alignItems: "center", gap: "8px", cursor: "pointer",
-                      padding: "8px 12px", borderRadius: "10px",
-                      border: "1px dashed rgba(255,255,255,0.2)", background: "rgba(255,255,255,0.03)"
-                    }}>
-                      <input type="file" accept="image/png,image/jpeg,image/gif,image/webp" hidden
-                        onChange={e => { const f = e.target.files[0]; if (f) saveCustomSticker(f); e.target.value = ""; }} />
-                      <span style={{ fontSize: "1.5rem" }}>{stickerUploading ? "⏳" : "＋"}</span>
-                      <div>
-                        <p style={{ color: "rgba(255,255,255,0.8)", fontSize: "0.78rem", fontWeight: 600 }}>
-                          {stickerUploading ? "Uploading…" : "Add Custom Sticker"}
-                        </p>
-                        <p style={{ color: "rgba(255,255,255,0.3)", fontSize: "0.65rem", marginTop: "2px" }}>PNG, JPG, GIF or WebP</p>
-                      </div>
-                    </label>
-                    {myStickers.length === 0 ? (
-                      <p style={{
-                        color: "rgba(255,255,255,0.25)", fontSize: "0.75rem",
-                        textAlign: "center", padding: "16px 0"
-                      }}>No custom stickers yet. Upload one above!</p>
-                    ) : (
-                      <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: "5px" }}>
-                        {myStickers.map((s, i) => (
-                          <div key={i} style={{
-                            position: "relative", aspectRatio: "1", borderRadius: "8px",
-                            overflow: "hidden", background: "rgba(255,255,255,0.05)"
-                          }}
-                            onMouseEnter={e => { const b = e.currentTarget.querySelector(".sd"); if (b) b.style.opacity = "1"; }}
-                            onMouseLeave={e => { const b = e.currentTarget.querySelector(".sd"); if (b) b.style.opacity = "0"; }}>
-                            <img src={s.url} alt={s.name} onClick={() => { sendMedia(s.url); setMediaPanel(null); }}
-                              style={{
-                                width: "100%", height: "100%", objectFit: "contain",
-                                cursor: "pointer", display: "block", padding: "4px"
-                              }} />
-                            <button className="sd" onClick={e => { e.stopPropagation(); deleteCustomSticker(s.url); }}
-                              style={{
-                                position: "absolute", top: "3px", right: "3px", opacity: 0,
-                                width: "18px", height: "18px", borderRadius: "50%", border: "none",
-                                background: "rgba(0,0,0,0.75)", color: "white", cursor: "pointer",
-                                fontSize: "0.6rem", display: "flex", alignItems: "center",
-                                justifyContent: "center", transition: "opacity 0.15s", lineHeight: 1
-                              }}>✕</button>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                )}
-                {stickerPack !== "custom" && STICKER_PACKS[stickerPack] && (
-                  <div style={{ display: "flex", flexWrap: "wrap", gap: "4px" }}>
-                    {STICKER_PACKS[stickerPack].map(em => (
-                      <div key={em}
-                        onClick={() => {
-                          if (selectedUser) sendDM(em, null);
-                          else if (selectedGroup) sendGroup(em, null);
-                          setMediaPanel(null);
-                        }}
-                        style={{
-                          fontSize: "2.2rem", width: "56px", height: "56px", display: "flex",
-                          alignItems: "center", justifyContent: "center", borderRadius: "12px",
-                          cursor: "pointer", userSelect: "none", transition: "transform 0.15s ease, background 0.12s"
-                        }}
-                        onMouseEnter={e => { e.currentTarget.style.transform = "scale(1.22)"; e.currentTarget.style.background = "rgba(255,255,255,0.08)"; }}
-                        onMouseLeave={e => { e.currentTarget.style.transform = "scale(1)"; e.currentTarget.style.background = "transparent"; }}
-                      >{em}</div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
-    );
-  };
+  const iconFilter = isSunMode
+    ? "brightness(0) saturate(100%) invert(45%) sepia(1) hue-rotate(330deg) saturate(4)"
+    : "brightness(0) saturate(100%) invert(60%) sepia(1) hue-rotate(230deg) saturate(3)";
 
-  // ── Message bubble ─────────────────────────────────────────────────
-  const renderBubble = (msg, index, isGroup) => {
-    const senderId = typeof msg.senderId === "object" ? msg.senderId?._id : msg.senderId;
-    const isMine = senderId === authUser._id || senderId?.toString() === authUser._id?.toString();
-    const senderPic = typeof msg.senderId === "object"
-      ? msg.senderId?.profilePic
-      : isMine ? authUser?.profilePic : selectedUser?.profilePic;
-    const senderName = isGroup && !isMine && typeof msg.senderId === "object"
-      ? msg.senderId?.fullName : null;
-    const isHovered = hoveredMsgId === msg._id;
-    const onSoftDel = isGroup ? () => handleDeleteGroup(msg._id) : () => handleDeleteDM(msg._id);
-    const onHardDel = isGroup ? () => handleHardDeleteGroup(msg._id) : () => handleHardDeleteDM(msg._id);
+  // ── Reaction picker portal ─────────────────────────────────────────
+  const ReactPickerPortal = () => {
+    if (!reactPicker) return null;
+    const { msgId, rect, isMine, isGroup } = reactPicker;
+    const panelW = Math.min(330, window.innerWidth - 16);
+    let left = isMine ? rect.right - panelW : rect.left;
+    left = Math.max(8, Math.min(left, window.innerWidth - panelW - 8));
+    const top = Math.max(8, rect.top - 54);
+    const onReact = isGroup ? em => handleReactGroup(msgId, em) : em => handleReactDM(msgId, em);
+    return createPortal(
+      <div data-react-picker style={{
+        position: "fixed", top: `${top}px`, left: `${left}px`, width: `${panelW}px`, zIndex: 99999,
+        display: "flex", flexWrap: "nowrap", gap: "2px", padding: "6px 8px",
+        background: "rgba(22,19,52,0.98)", border: "1px solid rgba(255,255,255,0.14)",
+        borderRadius: "14px", backdropFilter: "blur(20px)",
+        boxShadow: "0 8px 40px rgba(0,0,0,0.6)", animation: "popIn 0.18s ease-out both",
+      }}>
+        {REACT_EMOJIS.map(em => (
+          <div key={em} onClick={() => onReact(em)}
+            style={{
+              fontSize: "1.2rem", width: "32px", height: "32px", display: "flex",
+              alignItems: "center", justifyContent: "center", borderRadius: "8px",
+              cursor: "pointer", transition: "transform 0.15s ease", userSelect: "none"
+            }}
+            onMouseEnter={e => e.currentTarget.style.transform = "scale(1.45)"}
+            onMouseLeave={e => e.currentTarget.style.transform = "scale(1)"}
+          >{em}</div>
+        ))}
+      </div>,
+      document.body
+    );
+  };
 
-    return (
-      <div key={msg._id || index}
-        className={`flex items-end gap-2 w-full ${isMine ? "flex-row-reverse" : "flex-row"}`}
-        onMouseEnter={() => setHoveredMsgId(msg._id)}
-        onMouseLeave={() => setHoveredMsgId(null)}
-      >
-        <img src={senderPic || assets.avatar_icon} alt=""
-          className="w-7 h-7 rounded-full object-cover flex-shrink-0 self-end mb-1" />
+  // ── Copy toast portal ──────────────────────────────────────────────
+  const CopyToast = () => !copyToast ? null : createPortal(
+    <div style={{
+      position: "fixed", bottom: "90px", left: "50%", transform: "translateX(-50%)",
+      padding: "8px 18px", background: "rgba(22,19,52,0.96)", color: "white",
+      borderRadius: "20px", fontSize: "0.8rem", fontFamily: "inherit",
+      border: "1px solid rgba(255,255,255,0.15)", zIndex: 99999,
+      animation: "popIn 0.15s ease-out both", backdropFilter: "blur(12px)",
+      boxShadow: "0 4px 20px rgba(0,0,0,0.4)",
+    }}>✓ Copied to clipboard</div>,
+    document.body
+  );
 
-        <div className={`flex flex-col gap-1 min-w-0 ${isMine ? "items-end" : "items-start"}`}
-          style={{ maxWidth: "65%" }}>
+  // ── Inline media panel (above input bar, no portal positioning issues) ──
+  const MediaPanel = () => {
+    if (!mediaPanel) return null;
+    const accent = isSunMode ? "#f97316,#dc2626" : "#7c3aed,#9333ea";
+    const accentSolid = isSunMode ? "#f97316" : "#7c3aed";
+    return (
+      <div data-media-panel style={{
+        flexShrink: 0, height: "300px", borderTop: "1px solid rgba(255,255,255,0.08)",
+        display: "flex", flexDirection: "column", background: "rgba(14,11,34,0.97)", overflow: "hidden",
+      }}>
+        {/* Tabs */}
+        <div style={{ display: "flex", borderBottom: "1px solid rgba(255,255,255,0.08)", flexShrink: 0 }}>
+          {[{ k: "emoji", l: "😀 Emoji" }, { k: "gif", l: "🎬 GIFs" }, { k: "sticker", l: "🎭 Stickers" }].map(tab => (
+            <button key={tab.k} onClick={() => setMediaPanel(tab.k)}
+              style={{
+                flex: 1, padding: "8px 4px", border: "none", cursor: "pointer",
+                background: "transparent", fontFamily: "inherit", fontSize: "0.78rem",
+                fontWeight: mediaPanel === tab.k ? 700 : 400,
+                color: mediaPanel === tab.k ? "white" : "rgba(255,255,255,0.4)",
+                borderBottom: mediaPanel === tab.k ? `2px solid ${accentSolid}` : "2px solid transparent",
+                transition: "all 0.15s ease",
+              }}>{tab.l}</button>
+          ))}
+        </div>
+        {uploadError && (
+          <div style={{
+            padding: "6px 12px", background: "rgba(239,68,68,0.15)", borderBottom: "1px solid rgba(239,68,68,0.25)",
+            color: "#fca5a5", fontSize: "0.72rem", textAlign: "center", flexShrink: 0
+          }}>
+            {uploadError}
+          </div>
+        )}
+        <div style={{ flex: 1, overflow: "hidden", display: "flex", flexDirection: "column" }}>
 
-          {senderName && <p className="text-xs text-violet-300 px-1 truncate">{senderName}</p>}
+          {/* Emoji */}
+          {mediaPanel === "emoji" && (
+            <div style={{
+              flex: 1, overflowY: "auto", padding: "8px",
+              display: "flex", flexWrap: "wrap", gap: "2px", alignContent: "flex-start"
+            }}>
+              {INPUT_EMOJIS.map(em => (
+                <div key={em} onClick={() => insertEmoji(em)}
+                  style={{
+                    fontSize: "1.5rem", width: "40px", height: "40px", display: "flex",
+                    alignItems: "center", justifyContent: "center", borderRadius: "8px",
+                    cursor: "pointer", userSelect: "none", transition: "transform 0.12s ease, background 0.1s"
+                  }}
+                  onMouseEnter={e => { e.currentTarget.style.transform = "scale(1.3)"; e.currentTarget.style.background = "rgba(255,255,255,0.1)"; }}
+                  onMouseLeave={e => { e.currentTarget.style.transform = "scale(1)"; e.currentTarget.style.background = "transparent"; }}
+                >{em}</div>
+              ))}
+            </div>
+          )}
 
-          {/* Action bar */}
-          <div className={`flex items-center gap-1 ${isMine ? "flex-row-reverse" : "flex-row"}`}
-            style={{
-              opacity: isHovered ? 1 : 0, pointerEvents: isHovered ? "auto" : "none",
-              transition: "opacity 0.15s ease", height: "26px"
-            }}>
-            {!msg.deleted && (
-              <button className="msg-action-btn" title="React"
-                onClick={e => openReactPicker(e, msg._id, isMine, isGroup)}>😊</button>
-            )}
-            {!msg.deleted && msg.text && (
-              <button className="msg-action-btn" title="Copy" onClick={() => handleCopy(msg.text)}>📋</button>
-            )}
-            {isMine && !msg.deleted && (
-              <button className="msg-action-btn delete" title="Delete" onClick={onSoftDel}>🗑️</button>
-            )}
-            {isMine && msg.deleted && (
-              <button className="msg-action-btn delete" title="Remove completely"
-                style={{ fontSize: "0.7rem", padding: "2px 6px", width: "auto", color: "#f87171" }}
-                onClick={() => { if (window.confirm("Remove this message completely?")) onHardDel(); }}>
-                Remove
-              </button>
-            )}
-          </div>
+          {/* GIF gallery */}
+          {mediaPanel === "gif" && (
+            <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
+              <div style={{ display: "flex", gap: "6px", padding: "8px 8px 6px", flexShrink: 0 }}>
+                <input value={gifSearch} onChange={e => setGifSearch(e.target.value)}
+                  placeholder="Search your saved GIFs…"
+                  style={{
+                    flex: 1, padding: "6px 10px", background: "rgba(255,255,255,0.08)",
+                    border: "1px solid rgba(255,255,255,0.12)", borderRadius: "8px",
+                    color: "white", fontSize: "0.75rem", outline: "none", fontFamily: "inherit"
+                  }} />
+                <label style={{ flexShrink: 0, cursor: "pointer" }}>
+                  <input type="file" accept="image/gif,image/webp" hidden
+                    onChange={e => { const f = e.target.files[0]; if (f) saveGifToGallery(f); e.target.value = ""; }} />
+                  <div style={{
+                    padding: "6px 12px", borderRadius: "8px", border: "none", cursor: "pointer",
+                    backgroundImage: `linear-gradient(135deg,${accent})`, color: "white",
+                    fontSize: "0.75rem", fontFamily: "inherit", whiteSpace: "nowrap",
+                    display: "flex", alignItems: "center"
+                  }}>
+                    {gifUploading ? "⏳" : "＋ Add GIF"}
+                  </div>
+                </label>
+              </div>
+              <div style={{ flex: 1, overflowY: "auto", padding: "0 8px 8px" }}>
+                {filteredGifs.length === 0 ? (
+                  <div style={{
+                    display: "flex", flexDirection: "column", alignItems: "center",
+                    justifyContent: "center", height: "100%", gap: "8px",
+                    color: "rgba(255,255,255,0.25)", fontSize: "0.8rem", textAlign: "center", padding: "0 20px"
+                  }}>
+                    <span style={{ fontSize: "2.5rem" }}>🎬</span>
+                    <p style={{ fontWeight: 600 }}>No GIFs saved yet</p>
+                    <p style={{ fontSize: "0.7rem", lineHeight: 1.5 }}>Tap <strong>＋ Add GIF</strong> to upload from your device.</p>
+                  </div>
+                ) : (
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: "5px" }}>
+                    {filteredGifs.map((gif, i) => (
+                      <div key={i} style={{
+                        position: "relative", aspectRatio: "1", borderRadius: "8px",
+                        overflow: "hidden", background: "rgba(255,255,255,0.05)"
+                      }}
+                        onMouseEnter={e => { const b = e.currentTarget.querySelector(".gd"); if (b) b.style.opacity = "1"; }}
+                        onMouseLeave={e => { const b = e.currentTarget.querySelector(".gd"); if (b) b.style.opacity = "0"; }}>
+                        <img src={gif.url} alt={gif.name}
+                          onClick={() => { sendMedia(gif.url); setMediaPanel(null); }}
+                          style={{ width: "100%", height: "100%", objectFit: "cover", cursor: "pointer", display: "block" }} />
+                        <button className="gd" onClick={e => { e.stopPropagation(); deleteFromGallery(gif.url); }}
+                          style={{
+                            position: "absolute", top: "4px", right: "4px", opacity: 0,
+                            width: "20px", height: "20px", borderRadius: "50%", border: "none",
+                            background: "rgba(0,0,0,0.75)", color: "white", cursor: "pointer",
+                            fontSize: "0.65rem", display: "flex", alignItems: "center",
+                            justifyContent: "center", transition: "opacity 0.15s", lineHeight: 1
+                          }}>✕</button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
 
-          {/* Bubble */}
-          {msg.deleted ? (
-            <div className="msg-deleted-bubble">
-              <span>🚫</span><span style={{ flex: 1 }}>This message was deleted</span>
-            </div>
-          ) : (
-            <div className={`px-3 py-2 rounded-2xl text-sm font-light text-white
-              ${isSunMode ? "bg-gradient-to-br from-orange-500/25 to-red-500/20" : "bg-violet-500/30"}
-              ${isMine ? "rounded-br-sm" : "rounded-bl-sm"}`}
-              style={{ wordBreak: "break-word", overflowWrap: "break-word", maxWidth: "100%" }}>
-              {msg.image && (
-                <img src={msg.image} alt="shared" onClick={() => window.open(msg.image, "_blank")}
-                  className="rounded-xl mb-1 cursor-zoom-in hover:opacity-90 transition-opacity block"
-                  style={{ maxWidth: "200px" }} />
-              )}
-              {msg.text && <span>{msg.text}</span>}
-            </div>
-          )}
+          {/* Stickers */}
+          {mediaPanel === "sticker" && (
+            <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
+              <div style={{
+                display: "flex", gap: "4px", padding: "6px 8px", flexShrink: 0,
+                overflowX: "auto", overflowY: "hidden",
+                WebkitOverflowScrolling: "touch", /* Enables smooth momentum scrolling on iOS */
+                touchAction: "pan-x", /* Tells the browser to prioritize horizontal swiping */
+                scrollbarWidth: "none", /* Hides scrollbar on Firefox for cleaner UI */
+                msOverflowStyle: "none", /* Hides scrollbar on IE/Edge */
+                borderBottom: "1px solid rgba(255,255,255,0.06)"
+              }}>
+                <button onClick={() => setStickerPack("custom")}
+                  style={{
+                    padding: "4px 10px", borderRadius: "20px", border: "1px solid",
+                    cursor: "pointer", fontSize: "0.68rem", whiteSpace: "nowrap", fontFamily: "inherit",
+                    flexShrink: 0, transition: "all 0.15s",
+                    background: stickerPack === "custom" ? `linear-gradient(135deg,${accent})` : "rgba(255,255,255,0.06)",
+                    borderColor: stickerPack === "custom" ? "transparent" : "rgba(255,255,255,0.1)",
+                    color: "white"
+                  }}>⭐ Mine</button>
+                {Object.keys(STICKER_PACKS).map(pack => (
+                  <button key={pack} onClick={() => setStickerPack(pack)}
+                    style={{
+                      padding: "4px 10px", borderRadius: "20px", border: "1px solid",
+                      cursor: "pointer", fontSize: "0.68rem", whiteSpace: "nowrap", fontFamily: "inherit",
+                      flexShrink: 0, transition: "all 0.15s",
+                      background: stickerPack === pack ? `linear-gradient(135deg,${accent})` : "rgba(255,255,255,0.06)",
+                      borderColor: stickerPack === pack ? "transparent" : "rgba(255,255,255,0.1)",
+                      color: "white"
+                    }}>{pack}</button>
+                ))}
+              </div>
+              <div style={{ flex: 1, overflowY: "auto", padding: "8px" }}>
+                {stickerPack === "custom" && (
+                  <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                    <label style={{
+                      display: "flex", alignItems: "center", gap: "8px", cursor: "pointer",
+                      padding: "8px 12px", borderRadius: "10px",
+                      border: "1px dashed rgba(255,255,255,0.2)", background: "rgba(255,255,255,0.03)"
+                    }}>
+                      <input type="file" accept="image/png,image/jpeg,image/gif,image/webp" hidden
+                        onChange={e => { const f = e.target.files[0]; if (f) saveCustomSticker(f); e.target.value = ""; }} />
+                      <span style={{ fontSize: "1.5rem" }}>{stickerUploading ? "⏳" : "＋"}</span>
+                      <div>
+                        <p style={{ color: "rgba(255,255,255,0.8)", fontSize: "0.78rem", fontWeight: 600 }}>
+                          {stickerUploading ? "Uploading…" : "Add Custom Sticker"}
+                        </p>
+                        <p style={{ color: "rgba(255,255,255,0.3)", fontSize: "0.65rem", marginTop: "2px" }}>PNG, JPG, GIF or WebP</p>
+                      </div>
+                    </label>
+                    {myStickers.length === 0 ? (
+                      <p style={{
+                        color: "rgba(255,255,255,0.25)", fontSize: "0.75rem",
+                        textAlign: "center", padding: "16px 0"
+                      }}>No custom stickers yet. Upload one above!</p>
+                    ) : (
+                      <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: "5px" }}>
+                        {myStickers.map((s, i) => (
+                          <div key={i} style={{
+                            position: "relative", aspectRatio: "1", borderRadius: "8px",
+                            overflow: "hidden", background: "rgba(255,255,255,0.05)"
+                          }}
+                            onMouseEnter={e => { const b = e.currentTarget.querySelector(".sd"); if (b) b.style.opacity = "1"; }}
+                            onMouseLeave={e => { const b = e.currentTarget.querySelector(".sd"); if (b) b.style.opacity = "0"; }}>
+                            <img src={s.url} alt={s.name} onClick={() => { sendMedia(s.url); setMediaPanel(null); }}
+                              style={{
+                                width: "100%", height: "100%", objectFit: "contain",
+                                cursor: "pointer", display: "block", padding: "4px"
+                              }} />
+                            <button className="sd" onClick={e => { e.stopPropagation(); deleteCustomSticker(s.url); }}
+                              style={{
+                                position: "absolute", top: "3px", right: "3px", opacity: 0,
+                                width: "18px", height: "18px", borderRadius: "50%", border: "none",
+                                background: "rgba(0,0,0,0.75)", color: "white", cursor: "pointer",
+                                fontSize: "0.6rem", display: "flex", alignItems: "center",
+                                justifyContent: "center", transition: "opacity 0.15s", lineHeight: 1
+                              }}>✕</button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+                {stickerPack !== "custom" && STICKER_PACKS[stickerPack] && (
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: "4px" }}>
+                    {STICKER_PACKS[stickerPack].map(em => (
+                      <div key={em}
+                        onClick={() => {
+                          if (selectedUser) sendDM(em, null);
+                          else if (selectedGroup) sendGroup(em, null);
+                          setMediaPanel(null);
+                        }}
+                        style={{
+                          fontSize: "2.2rem", width: "56px", height: "56px", display: "flex",
+                          alignItems: "center", justifyContent: "center", borderRadius: "12px",
+                          cursor: "pointer", userSelect: "none", transition: "transform 0.15s ease, background 0.12s"
+                        }}
+                        onMouseEnter={e => { e.currentTarget.style.transform = "scale(1.22)"; e.currentTarget.style.background = "rgba(255,255,255,0.08)"; }}
+                        onMouseLeave={e => { e.currentTarget.style.transform = "scale(1)"; e.currentTarget.style.background = "transparent"; }}
+                      >{em}</div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  };
 
-          {/* Reactions */}
-          {msg.reactions && msg.reactions.length > 0 && (
-            <div className="flex flex-wrap gap-1">
-              {msg.reactions.map(r => {
-                const iMine = r.users.some(u => (u._id || u)?.toString() === authUser._id?.toString());
-                const onReact = isGroup
-                  ? () => handleReactGroup(msg._id, r.emoji)
-                  : () => handleReactDM(msg._id, r.emoji);
-                return (
-                  <span key={r.emoji} className={`reaction-chip ${iMine ? (isSunMode ? "mine-sun" : "mine") : ""}`}
-                    onClick={onReact}>
-                    {r.emoji}
-                    <span style={{ color: "rgba(255,255,255,0.5)", fontSize: "0.65rem" }}>{r.users.length}</span>
-                  </span>
-                );
-              })}
-            </div>
-          )}
-          <p className="text-gray-500 text-xs px-1">{formatMessageTime(msg.createdAt)}</p>
-        </div>
-      </div>
-    );
-  };
+  // ── Message bubble ─────────────────────────────────────────────────
+  const renderBubble = (msg, index, isGroup) => {
+    const senderId = typeof msg.senderId === "object" ? msg.senderId?._id : msg.senderId;
+    const isMine = senderId === authUser._id || senderId?.toString() === authUser._id?.toString();
+    const senderPic = typeof msg.senderId === "object"
+      ? msg.senderId?.profilePic
+      : isMine ? authUser?.profilePic : selectedUser?.profilePic;
+    const senderName = isGroup && !isMine && typeof msg.senderId === "object"
+      ? msg.senderId?.fullName : null;
+    const isHovered = hoveredMsgId === msg._id;
+    const onSoftDel = isGroup ? () => handleDeleteGroup(msg._id) : () => handleDeleteDM(msg._id);
+    const onHardDel = isGroup ? () => handleHardDeleteGroup(msg._id) : () => handleHardDeleteDM(msg._id);
 
-  // ── Input bar ──────────────────────────────────────────────────────
-  const renderInputBar = (onSend, placeholder) => (
-    <div className="flex-shrink-0 flex items-center gap-2 p-2 sm:p-3 border-t border-white/5">
-      <div className="flex-1 flex flex-col items-start bg-gray-100/12 px-3 rounded-2xl min-w-0">
-        {imagePreview && (
-          <div className="relative pt-2 pl-1">
-            <img src={imagePreview} alt="preview" className="h-14 rounded-md" />
-            <button onClick={() => { setImagePreview(null); setImageFile(null); }}
-              className="absolute top-1 right-1 text-white bg-black/50 rounded-full w-5 h-5 flex items-center justify-center text-xs">✕</button>
-          </div>
-        )}
-        <div className="flex w-full items-center gap-1">
-          <button
-            data-media-toggle
-            onClick={() => setMediaPanel(p => p ? null : "emoji")}
-            title="Emoji / GIF / Stickers"
-            style={{
-              fontSize: "1.3rem", flexShrink: 0, padding: "4px 6px", borderRadius: "8px",
-              border: "none", cursor: "pointer", transition: "all 0.15s ease",
-              background: mediaPanel
-                ? (isSunMode ? "rgba(249,115,22,0.2)" : "rgba(124,58,237,0.2)")
-                : "transparent",
-              outline: "none",
-            }}
-          >🙂</button>
+    return (
+      <div key={msg._id || index}
+        className={`flex items-end gap-2 w-full ${isMine ? "flex-row-reverse" : "flex-row"}`}
+        onMouseEnter={() => setHoveredMsgId(msg._id)}
+        onMouseLeave={() => setHoveredMsgId(null)}
+      >
+        <img src={senderPic || assets.avatar_icon} alt=""
+          className="w-7 h-7 rounded-full object-cover flex-shrink-0 self-end mb-1" />
 
-          <input ref={inputRef} type="text" value={inputText}
-            onChange={e => setInputText(e.target.value)} onKeyDown={handleKey}
-            placeholder={placeholder}
-            className="flex-1 text-sm p-2 sm:p-3 border-none outline-none text-white placeholder-gray-400 bg-transparent min-w-0" />
+        <div className={`flex flex-col gap-1 min-w-0 ${isMine ? "items-end" : "items-start"}`}
+          style={{ maxWidth: "65%" }}>
 
-          <input type="file" id="chat-file" accept="image/png,image/jpeg,image/gif,image/webp" hidden
-            onChange={handleFileSelect} />
-          <label htmlFor="chat-file" className="cursor-pointer flex-shrink-0 opacity-70 hover:opacity-100 transition-opacity">
-            <img src={assets.gallery_icon} alt="" className="w-5 mr-1" style={{ filter: iconFilter }} />
-          </label>
-        </div>
-      </div>
-      <button
-        onClick={!sending ? onSend : undefined} disabled={sending}
-        style={{
-          width: "40px", height: "40px", borderRadius: "50%", border: "none",
-          backgroundImage: isSunMode
-            ? "linear-gradient(135deg, #f97316, #dc2626)"
-            : "linear-gradient(135deg, #7c3aed, #9333ea)",
-          display: "flex", alignItems: "center", justifyContent: "center",
-          cursor: sending ? "not-allowed" : "pointer",
-          opacity: sending ? 0.5 : 1,
-          transition: "transform 0.15s ease, box-shadow 0.2s ease",
-          boxShadow: isSunMode ? "0 4px 16px rgba(249,115,22,0.4)" : "0 4px 16px rgba(124,58,237,0.4)",
-          flexShrink: 0,
-        }}
-        onMouseEnter={e => e.currentTarget.style.transform = "scale(1.1)"}
-        onMouseLeave={e => e.currentTarget.style.transform = "scale(1)"}
-      >
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="white"
-          style={{ width: "18px", height: "18px", marginLeft: "2px" }}>
-          <path d="M3.478 2.405a.75.75 0 00-.926.94l2.432 7.905H13.5a.75.75 0 010 1.5H4.984l-2.432 7.905a.75.75 0 00.926.94 60.519 60.519 0 0018.445-8.986.75.75 0 000-1.218A60.517 60.517 0 003.478 2.405z" />
-        </svg>
-      </button>
-    </div>
-  );
+          {senderName && <p className="text-xs text-violet-300 px-1 truncate">{senderName}</p>}
 
-  // ── Online check ───────────────────────────────────────────────────
-  const dmOnline = isUserOnline
-    ? isUserOnline(selectedUser?._id)
-    : onlineUsers.includes(selectedUser?._id);
+          {/* Action bar */}
+          <div className={`flex items-center gap-1 ${isMine ? "flex-row-reverse" : "flex-row"}`}
+            style={{
+              opacity: isHovered ? 1 : 0, pointerEvents: isHovered ? "auto" : "none",
+              transition: "opacity 0.15s ease", height: "26px"
+            }}>
+            {!msg.deleted && (
+              <button className="msg-action-btn" title="React"
+                onClick={e => openReactPicker(e, msg._id, isMine, isGroup)}>😊</button>
+            )}
+            {!msg.deleted && msg.text && (
+              <button className="msg-action-btn" title="Copy" onClick={() => handleCopy(msg.text)}>📋</button>
+            )}
+            {isMine && !msg.deleted && (
+              <button className="msg-action-btn delete" title="Delete" onClick={onSoftDel}>🗑️</button>
+            )}
+            {isMine && msg.deleted && (
+              <button className="msg-action-btn delete" title="Remove completely"
+                style={{ fontSize: "0.7rem", padding: "2px 6px", width: "auto", color: "#f87171" }}
+                onClick={() => { if (window.confirm("Remove this message completely?")) onHardDel(); }}>
+                Remove
+              </button>
+            )}
+          </div>
 
-  // ── DM view ────────────────────────────────────────────────────────
-  if (selectedUser) return (
-    <>
-      <ReactPickerPortal />
-      <CopyToast />
-      <div className="h-full flex flex-col overflow-hidden">
-        <div className="flex items-center gap-3 py-3 px-3 sm:px-4 border-b border-stone-500 flex-shrink-0">
-          <img onClick={() => setSelectedUser(null)} src={assets.arrow_icon}
-            className="md:hidden w-6 h-6 cursor-pointer flex-shrink-0" alt="back" />
-          <img src={selectedUser?.profilePic || assets.avatar_icon} alt=""
-            className="w-9 h-9 rounded-full object-cover flex-shrink-0" />
-          <div className="flex-1 min-w-0">
-            <p className="text-white font-medium text-sm sm:text-base truncate">{selectedUser?.fullName}</p>
-            <p className={`text-xs ${dmOnline ? "text-green-400" : "text-gray-400"}`}>
-              {dmOnline ? "● Online" : "○ Offline"}
-            </p>
-          </div>
-          <img src={assets.help_icon} alt="" className="max-md:hidden max-w-5 flex-shrink-0 opacity-60" />
-        </div>
-        <div className="flex-1 overflow-y-auto p-3 sm:p-4 flex flex-col gap-4 min-h-0">
-          {messages.map((msg, i) => renderBubble(msg, i, false))}
-          <div ref={scrollEnd} />
-        </div>
-        <MediaPanel />
-        {renderInputBar(doSend, "Send a message")}
-      </div>
-    </>
-  );
+          {/* Bubble */}
+          {msg.deleted ? (
+            <div className="msg-deleted-bubble">
+              <span>🚫</span><span style={{ flex: 1 }}>This message was deleted</span>
+            </div>
+          ) : (
+            <div className={`px-3 py-2 rounded-2xl text-sm font-light text-white
+              ${isSunMode ? "bg-gradient-to-br from-orange-500/25 to-red-500/20" : "bg-violet-500/30"}
+              ${isMine ? "rounded-br-sm" : "rounded-bl-sm"}`}
+              style={{ wordBreak: "break-word", overflowWrap: "break-word", maxWidth: "100%" }}>
+              {msg.image && (
+                <img src={msg.image} alt="shared" onClick={() => window.open(msg.image, "_blank")}
+                  className="rounded-xl mb-1 cursor-zoom-in hover:opacity-90 transition-opacity block"
+                  style={{ maxWidth: "200px" }} />
+              )}
+              {msg.text && <span>{msg.text}</span>}
+            </div>
+          )}
 
-  // ── Group view ─────────────────────────────────────────────────────
-  if (selectedGroup) return (
-    <>
-      <ReactPickerPortal />
-      <CopyToast />
-      <div className="h-full flex flex-col overflow-hidden">
-        <div className="flex items-center gap-3 py-3 px-3 sm:px-4 border-b border-stone-500 flex-shrink-0">
-          <img onClick={() => setSelectedGroup(null)} src={assets.arrow_icon}
-            className="md:hidden w-6 h-6 cursor-pointer flex-shrink-0" alt="back" />
-          <img src={selectedGroup?.groupPic || assets.avatar_icon} alt=""
-            className="w-9 h-9 rounded-full object-cover flex-shrink-0" />
-          <div className="flex-1 min-w-0">
-            <p className="text-white font-medium text-sm sm:text-base truncate">{selectedGroup?.name}</p>
-            <p className="text-gray-400 text-xs">{selectedGroup?.members?.length} members</p>
-          </div>
-          <img src={assets.help_icon} alt="" className="max-md:hidden max-w-5 flex-shrink-0 opacity-60" />
-        </div>
-        <div className="flex-1 overflow-y-auto p-3 sm:p-4 flex flex-col gap-4 min-h-0">
-          {groupMessages.map((msg, i) => renderBubble(msg, i, true))}
-          <div ref={scrollEnd} />
-        </div>
-        <MediaPanel />
-        {renderInputBar(doSend, "Message the group")}
-      </div>
-    </>
-  );
+          {/* Reactions */}
+          {msg.reactions && msg.reactions.length > 0 && (
+            <div className="flex flex-wrap gap-1">
+              {msg.reactions.map(r => {
+                const iMine = r.users.some(u => (u._id || u)?.toString() === authUser._id?.toString());
+                const onReact = isGroup
+                  ? () => handleReactGroup(msg._id, r.emoji)
+                  : () => handleReactDM(msg._id, r.emoji);
+                return (
+                  <span key={r.emoji} className={`reaction-chip ${iMine ? (isSunMode ? "mine-sun" : "mine") : ""}`}
+                    onClick={onReact}>
+                    {r.emoji}
+                    <span style={{ color: "rgba(255,255,255,0.5)", fontSize: "0.65rem" }}>{r.users.length}</span>
+                  </span>
+                );
+              })}
+            </div>
+          )}
+          <p className="text-gray-500 text-xs px-1">{formatMessageTime(msg.createdAt)}</p>
+        </div>
+      </div>
+    );
+  };
 
-  // ── Empty state — ConstellationCanvas + butterflies ────────────────
-  return (
-    <div className="relative flex flex-col items-center justify-center h-full bg-white/5 backdrop-blur-xl max-md:hidden px-4 overflow-hidden">
+  // ── Input bar ──────────────────────────────────────────────────────
+  const renderInputBar = (onSend, placeholder) => (
+    <div className="flex-shrink-0 flex items-center gap-2 p-2 sm:p-3 border-t border-white/5">
+      <div className="flex-1 flex flex-col items-start bg-gray-100/12 px-3 rounded-2xl min-w-0">
+        {imagePreview && (
+          <div className="relative pt-2 pl-1">
+            <img src={imagePreview} alt="preview" className="h-14 rounded-md" />
+            <button onClick={() => { setImagePreview(null); setImageFile(null); }}
+              className="absolute top-1 right-1 text-white bg-black/50 rounded-full w-5 h-5 flex items-center justify-center text-xs">✕</button>
+          </div>
+        )}
+        <div className="flex w-full items-center gap-1">
+          <button
+            data-media-toggle
+            onClick={() => setMediaPanel(p => p ? null : "emoji")}
+            title="Emoji / GIF / Stickers"
+            style={{
+              fontSize: "1.3rem", flexShrink: 0, padding: "4px 6px", borderRadius: "8px",
+              border: "none", cursor: "pointer", transition: "all 0.15s ease",
+              background: mediaPanel
+                ? (isSunMode ? "rgba(249,115,22,0.2)" : "rgba(124,58,237,0.2)")
+                : "transparent",
+              outline: "none",
+            }}
+          >🙂</button>
 
-      {/* Canvas sits behind everything, fully transparent */}
-      <CosmosCanvas />
+          <input ref={inputRef} type="text" value={inputText}
+            onChange={e => setInputText(e.target.value)} onKeyDown={handleKey}
+            placeholder={placeholder}
+            className="flex-1 text-sm p-2 sm:p-3 border-none outline-none text-white placeholder-gray-400 bg-transparent min-w-0" />
 
-      {/* Existing decorative elements on top of canvas */}
-      <div className="absolute inset-x-0 bottom-0 h-28 bg-gradient-to-t from-white/10 via-sky-200/10 to-transparent blur-3xl pointer-events-none z-0" />
-      {Array.from({ length: 3 }).map((_, i) => (
-        <div key={`ring-${i}`} className="absolute border border-white/10 rounded-full animate-soft-pulse blur-[2px]"
-          style={{
-            width: `${60 + i * 30}px`, height: `${60 + i * 30}px`, top: `${40 + i * 10}%`, left: `${40 + i * 5}%`,
-            animationDuration: `${6 + i * 2}s`, zIndex: 2
-          }} />
-      ))}
+          <input type="file" id="chat-file" accept="image/png,image/jpeg,image/gif,image/webp" hidden
+            onChange={handleFileSelect} />
+          <label htmlFor="chat-file" className="cursor-pointer flex-shrink-0 opacity-70 hover:opacity-100 transition-opacity">
+            <img src={assets.gallery_icon} alt="" className="w-5 mr-1" style={{ filter: iconFilter }} />
+          </label>
+        </div>
+      </div>
+      <button
+        onClick={!sending ? onSend : undefined} disabled={sending}
+        style={{
+          width: "40px", height: "40px", borderRadius: "50%", border: "none",
+          backgroundImage: isSunMode
+            ? "linear-gradient(135deg, #f97316, #dc2626)"
+            : "linear-gradient(135deg, #7c3aed, #9333ea)",
+          display: "flex", alignItems: "center", justifyContent: "center",
+          cursor: sending ? "not-allowed" : "pointer",
+          opacity: sending ? 0.5 : 1,
+          transition: "transform 0.15s ease, box-shadow 0.2s ease",
+          boxShadow: isSunMode ? "0 4px 16px rgba(249,115,22,0.4)" : "0 4px 16px rgba(124,58,237,0.4)",
+          flexShrink: 0,
+        }}
+        onMouseEnter={e => e.currentTarget.style.transform = "scale(1.1)"}
+        onMouseLeave={e => e.currentTarget.style.transform = "scale(1)"}
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="white"
+          style={{ width: "18px", height: "18px", marginLeft: "2px" }}>
+          <path d="M3.478 2.405a.75.75 0 00-.926.94l2.432 7.905H13.5a.75.75 0 010 1.5H4.984l-2.432 7.905a.75.75 0 00.926.94 60.519 60.519 0 0018.445-8.986.75.75 0 000-1.218A60.517 60.517 0 003.478 2.405z" />
+        </svg>
+      </button>
+    </div>
+  );
 
-      {/* Butterflies (z-index 2 — above canvas) */}
-      {Array.from({ length: 12 }).map((_, i) => {
-        const paths = ["animate-drift-1", "animate-drift-2", "animate-drift-3"];
-        const colors = ["butterfly-blue", "butterfly-indigo", "butterfly-cyan", "butterfly-pink", "butterfly-purple"];
-        const scale = (0.35 + Math.random() * 0.55).toFixed(2);
-        return (
-          <svg key={`d-${i}`} className={`absolute ${colors[i % 5]} ${paths[i % 3]}`}
-            fill="currentColor" viewBox="0 0 20 20" style={{
-              zIndex: 2,
-              width: `${scale * 1.3}rem`, height: `${scale * 1.3}rem`, top: `${Math.random() * 90}%`, left: `-60px`,
-              opacity: 0.3 + Math.random() * 0.5, animationDuration: `${14 + Math.random() * 12}s`, animationDelay: `-${Math.random() * 20}s`
-            }}>
-            <path d="M10 1C7 2 6 6 4 6S1 4 1 4s1 3 3 4c-2 1-3 4-3 4s2-2 4-2c2 0 3 4 5 5 2-1 3-5 5-5 2 0 4 2 4 2s-1-3-3-4c2-1 3-4 3-4s-2 2-4 2-3-4-6-5z" />
-          </svg>
-        );
-      })}
-      {Array.from({ length: 10 }).map((_, i) => {
-        const colors = ["butterfly-blue", "butterfly-indigo", "butterfly-cyan", "butterfly-pink", "butterfly-purple"];
-        const scale = (0.3 + Math.random() * 0.6).toFixed(2);
-        return (
-          <svg key={`b-${i}`} className={`absolute ${colors[i % 5]}`} fill="currentColor" viewBox="0 0 20 20"
-            style={{
-              zIndex: 2, width: `${scale * 1.3}rem`, height: `${scale * 1.3}rem`,
-              top: `${10 + Math.random() * 80}%`, left: `${5 + Math.random() * 85}%`, opacity: 0.15 + Math.random() * 0.4,
-              animation: `gentleBob ${6 + Math.random() * 6}s ease-in-out infinite, wingFlap ${0.8 + Math.random() * 0.7}s ease-in-out infinite`,
-              animationDelay: `${Math.random() * 6}s,${Math.random() * 2}s`
-            }}>
-            <path d="M10 1C7 2 6 6 4 6S1 4 1 4s1 3 3 4c-2 1-3 4-3 4s2-2 4-2c2 0 3 4 5 5 2-1 3-5 5-5 2 0 4 2 4 2s-1-3-3-4c2-1 3-4 3-4s-2 2-4 2-3-4-6-5z" />
-          </svg>
-        );
-      })}
+  // ── Online check ───────────────────────────────────────────────────
+  const dmOnline = isUserOnline
+    ? isUserOnline(selectedUser?._id)
+    : onlineUsers.includes(selectedUser?._id);
 
-      <div className="z-10 text-center mt-4 px-6 relative">
-        <h2 className="text-xl font-semibold text-white tracking-tight">This space feels calm...</h2>
-        <p className="text-sm text-gray-300 mt-2 max-w-sm mx-auto leading-relaxed">
-          Start a conversation to bring life to this moment. Until then, enjoy the breeze.
-        </p>
-      </div>
-    </div>
-  );
+  // ── DM view ────────────────────────────────────────────────────────
+  if (selectedUser) return (
+    <>
+      <ReactPickerPortal />
+      <CopyToast />
+      <div className="h-full flex flex-col overflow-hidden">
+        <div className="flex items-center gap-3 py-3 px-3 sm:px-4 border-b border-stone-500 flex-shrink-0">
+          <img onClick={() => setSelectedUser(null)} src={assets.arrow_icon}
+            className="md:hidden w-6 h-6 cursor-pointer flex-shrink-0" alt="back" />
+          <img src={selectedUser?.profilePic || assets.avatar_icon} alt=""
+            className="w-9 h-9 rounded-full object-cover flex-shrink-0" />
+          <div className="flex-1 min-w-0">
+            <p className="text-white font-medium text-sm sm:text-base truncate">{selectedUser?.fullName}</p>
+            <p className={`text-xs ${dmOnline ? "text-green-400" : "text-gray-400"}`}>
+              {dmOnline ? "● Online" : "○ Offline"}
+            </p>
+          </div>
+          <img src={assets.help_icon} alt="" className="max-md:hidden max-w-5 flex-shrink-0 opacity-60" />
+        </div>
+        <div className="flex-1 overflow-y-auto p-3 sm:p-4 flex flex-col gap-4 min-h-0">
+          {messages.map((msg, i) => renderBubble(msg, i, false))}
+          <div ref={scrollEnd} />
+        </div>
+        <MediaPanel />
+        {renderInputBar(doSend, "Send a message")}
+      </div>
+    </>
+  );
+
+  // ── Group view ─────────────────────────────────────────────────────
+  if (selectedGroup) return (
+    <>
+      <ReactPickerPortal />
+      <CopyToast />
+      <div className="h-full flex flex-col overflow-hidden">
+        <div className="flex items-center gap-3 py-3 px-3 sm:px-4 border-b border-stone-500 flex-shrink-0">
+          <img onClick={() => setSelectedGroup(null)} src={assets.arrow_icon}
+            className="md:hidden w-6 h-6 cursor-pointer flex-shrink-0" alt="back" />
+          <img src={selectedGroup?.groupPic || assets.avatar_icon} alt=""
+            className="w-9 h-9 rounded-full object-cover flex-shrink-0" />
+          <div className="flex-1 min-w-0">
+            <p className="text-white font-medium text-sm sm:text-base truncate">{selectedGroup?.name}</p>
+            <p className="text-gray-400 text-xs">{selectedGroup?.members?.length} members</p>
+          </div>
+          <img src={assets.help_icon} alt="" className="max-md:hidden max-w-5 flex-shrink-0 opacity-60" />
+        </div>
+        <div className="flex-1 overflow-y-auto p-3 sm:p-4 flex flex-col gap-4 min-h-0">
+          {groupMessages.map((msg, i) => renderBubble(msg, i, true))}
+          <div ref={scrollEnd} />
+        </div>
+        <MediaPanel />
+        {renderInputBar(doSend, "Message the group")}
+      </div>
+    </>
+  );
+
+  // ── Empty state — ConstellationCanvas + butterflies ────────────────
+  return (
+    <div className="relative flex flex-col items-center justify-center h-full bg-white/5 backdrop-blur-xl max-md:hidden px-4 overflow-hidden">
+
+      {/* Canvas sits behind everything, fully transparent */}
+      <CosmosCanvas />
+
+      {/* Existing decorative elements on top of canvas */}
+      <div className="absolute inset-x-0 bottom-0 h-28 bg-gradient-to-t from-white/10 via-sky-200/10 to-transparent blur-3xl pointer-events-none z-0" />
+      {Array.from({ length: 3 }).map((_, i) => (
+        <div key={`ring-${i}`} className="absolute border border-white/10 rounded-full animate-soft-pulse blur-[2px]"
+          style={{
+            width: `${60 + i * 30}px`, height: `${60 + i * 30}px`, top: `${40 + i * 10}%`, left: `${40 + i * 5}%`,
+            animationDuration: `${6 + i * 2}s`, zIndex: 2
+          }} />
+      ))}
+
+      {/* Butterflies (z-index 2 — above canvas) */}
+      {Array.from({ length: 12 }).map((_, i) => {
+        const paths = ["animate-drift-1", "animate-drift-2", "animate-drift-3"];
+        const colors = ["butterfly-blue", "butterfly-indigo", "butterfly-cyan", "butterfly-pink", "butterfly-purple"];
+        const scale = (0.35 + Math.random() * 0.55).toFixed(2);
+        return (
+          <svg key={`d-${i}`} className={`absolute ${colors[i % 5]} ${paths[i % 3]}`}
+            fill="currentColor" viewBox="0 0 20 20" style={{
+              zIndex: 2,
+              width: `${scale * 1.3}rem`, height: `${scale * 1.3}rem`, top: `${Math.random() * 90}%`, left: `-60px`,
+              opacity: 0.3 + Math.random() * 0.5, animationDuration: `${14 + Math.random() * 12}s`, animationDelay: `-${Math.random() * 20}s`
+            }}>
+            <path d="M10 1C7 2 6 6 4 6S1 4 1 4s1 3 3 4c-2 1-3 4-3 4s2-2 4-2c2 0 3 4 5 5 2-1 3-5 5-5 2 0 4 2 4 2s-1-3-3-4c2-1 3-4 3-4s-2 2-4 2-3-4-6-5z" />
+          </svg>
+        );
+      })}
+      {Array.from({ length: 10 }).map((_, i) => {
+        const colors = ["butterfly-blue", "butterfly-indigo", "butterfly-cyan", "butterfly-pink", "butterfly-purple"];
+        const scale = (0.3 + Math.random() * 0.6).toFixed(2);
+        return (
+          <svg key={`b-${i}`} className={`absolute ${colors[i % 5]}`} fill="currentColor" viewBox="0 0 20 20"
+            style={{
+              zIndex: 2, width: `${scale * 1.3}rem`, height: `${scale * 1.3}rem`,
+              top: `${10 + Math.random() * 80}%`, left: `${5 + Math.random() * 85}%`, opacity: 0.15 + Math.random() * 0.4,
+              animation: `gentleBob ${6 + Math.random() * 6}s ease-in-out infinite, wingFlap ${0.8 + Math.random() * 0.7}s ease-in-out infinite`,
+              animationDelay: `${Math.random() * 6}s,${Math.random() * 2}s`
+            }}>
+            <path d="M10 1C7 2 6 6 4 6S1 4 1 4s1 3 3 4c-2 1-3 4-3 4s2-2 4-2c2 0 3 4 5 5 2-1 3-5 5-5 2 0 4 2 4 2s-1-3-3-4c2-1 3-4 3-4s-2 2-4 2-3-4-6-5z" />
+          </svg>
+        );
+      })}
+
+      <div className="z-10 text-center mt-4 px-6 relative">
+        <h2 className="text-xl font-semibold text-white tracking-tight">This space feels calm...</h2>
+        <p className="text-sm text-gray-300 mt-2 max-w-sm mx-auto leading-relaxed">
+          Start a conversation to bring life to this moment. Until then, enjoy the breeze.
+        </p>
+      </div>
+    </div>
+  );
 }

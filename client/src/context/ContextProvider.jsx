@@ -7,13 +7,6 @@ export const appContext = createContext();
 
 const idEq = (a, b) => a && b && String(a) === String(b);
 
-// Vercel serverless: Lambda instances are stateless — socket sessions are lost
-// between requests → 400 errors. Solution: skip socket on Vercel, use REST polling.
-const IS_VERCEL =
-  (typeof window !== "undefined" && window.location.hostname.includes("vercel.app")) ||
-  BASE_URL.includes("vercel.app");
-
-const POLL_MS      = 2500;
 const HEARTBEAT_MS = 25000;
 
 export const ContextProvider = ({ children }) => {
@@ -33,7 +26,6 @@ export const ContextProvider = ({ children }) => {
   const isSunMode = bg !== null ? String(bg).includes("blackhole") : false;
 
   const socketRef        = useRef(null);
-  const pollRef          = useRef(null);
   const heartbeatRef     = useRef(null);
   const onlinePollRef    = useRef(null);
   const selectedUserRef  = useRef(selectedUser);
@@ -67,7 +59,7 @@ export const ContextProvider = ({ children }) => {
       .catch(logout);
   }, [token]);
 
-  // ── Heartbeat — marks this user as online in DB (works on Vercel) ─
+  // ── Heartbeat — marks this user as online in DB (safety net alongside socket) ─
   const startHeartbeat = useCallback(() => {
     clearInterval(heartbeatRef.current);
     const ping = () => {
@@ -80,83 +72,23 @@ export const ContextProvider = ({ children }) => {
     heartbeatRef.current = setInterval(ping, HEARTBEAT_MS);
   }, []);
 
-  // ── REST polling (Vercel) ─────────────────────────────────────────
-  const startRestPolling = useCallback(() => {
-    clearInterval(pollRef.current);
-    pollRef.current = setInterval(async () => {
-      try {
-        const h = { Authorization: tokenRef.current };
-
-        // Sidebar users + unseen
-        const { data: ud } = await axios.get(`${BASE_URL}/api/messages/users`, { headers: h });
-        if (ud.success) {
-          setUsers(ud.users);
-          setUnseenMessages(prev => {
-            const next = { ...prev };
-            Object.entries(ud.unseenMessages || {}).forEach(([uid, cnt]) => {
-              if (!idEq(selectedUserRef.current?._id, uid)) next[uid] = cnt;
-              else next[uid] = 0;
-            });
-            return next;
-          });
-        }
-
-        // Active DM
-        const ou = selectedUserRef.current;
-        if (ou) {
-          const { data: md } = await axios.get(`${BASE_URL}/api/messages/${ou._id}`, { headers: h });
-          if (md.success) {
-            setMessages(md.messages);
-            // Mark sender as active if recent
-            const latest = md.messages?.[md.messages.length - 1];
-            if (latest && Date.now() - new Date(latest.createdAt).getTime() < 5 * 60 * 1000) {
-              markUserActive(ou._id);
-            }
-          }
-        }
-
-        // Active group
-        const og = selectedGroupRef.current;
-        if (og) {
-          const { data: gd } = await axios.get(`${BASE_URL}/api/groups/${og._id}/messages`, { headers: h });
-          if (gd.success) setGroupMessages(gd.messages);
-        }
-
-        // Groups list
-        const { data: grps } = await axios.get(`${BASE_URL}/api/groups`, { headers: h });
-        if (grps.success) setGroups(grps.groups);
-
-        // DB-based online presence
-        const { data: ol } = await axios.get(`${BASE_URL}/api/auth/online`, { headers: h });
-        if (ol.success) setOnlineUsers(ol.onlineIds);
-
-      } catch { /* silent */ }
-    }, POLL_MS);
-  }, [markUserActive]);
-
-  // ── Socket / polling bootstrap ────────────────────────────────────
+  // ── Socket.io bootstrap ─────────────────────────────────────────
   useEffect(() => {
     if (!authUser) {
       socketRef.current?.disconnect(); socketRef.current = null;
-      clearInterval(pollRef.current);      pollRef.current = null;
       clearInterval(heartbeatRef.current); heartbeatRef.current = null;
       clearInterval(onlinePollRef.current); onlinePollRef.current = null;
       return;
     }
 
-    startHeartbeat(); // always — works on both Vercel and non-Vercel
+    startHeartbeat(); // safety net for online presence
 
-    if (IS_VERCEL) {
-      startRestPolling();
-      return () => { clearInterval(pollRef.current); clearInterval(heartbeatRef.current); clearInterval(onlinePollRef.current); };
-    }
-
-    // ── Full Socket.io (non-Vercel) ───────────────────────────────
+    // ── Full Socket.io ────────────────────────────────────────────
     const socket = io(BASE_URL, {
       query: { userId: authUser._id },
       transports: ["websocket", "polling"],
       reconnection: true,
-      reconnectionAttempts: 10,
+      reconnectionAttempts: Infinity,
       reconnectionDelay: 1500,
     });
     socketRef.current = socket;
@@ -180,6 +112,10 @@ export const ContextProvider = ({ children }) => {
         const key = `group_${groupId}`;
         setUnseenMessages(p => ({ ...p, [key]: (p[key] || 0) + 1 }));
       }
+    });
+
+    socket.on("messageSeen", ({ messageId }) => {
+      setMessages(p => p.map(m => idEq(m._id, messageId) ? { ...m, seen: true } : m));
     });
 
     socket.on("messageDeleted",          ({ messageId }) => setMessages(p => p.map(m => idEq(m._id, messageId) ? { ...m, deleted: true, text: "", image: "" } : m)));
@@ -225,7 +161,6 @@ export const ContextProvider = ({ children }) => {
     setSelectedGroup(null); setOnlineUsers([]); setUnseenMessages({});
     localStorage.removeItem("token");
     socketRef.current?.disconnect(); socketRef.current = null;
-    clearInterval(pollRef.current);      pollRef.current = null;
     clearInterval(heartbeatRef.current); heartbeatRef.current = null;
     clearInterval(onlinePollRef.current); onlinePollRef.current = null;
   };
@@ -240,7 +175,6 @@ export const ContextProvider = ({ children }) => {
     createGrp, setCreateGrp,
     bg, setBg, isSunMode,
     isUserOnline, markUserActive,
-    isVercel: IS_VERCEL,
     axiosConfig: { headers: { Authorization: token } },
   };
 
