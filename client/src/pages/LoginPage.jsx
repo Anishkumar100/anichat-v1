@@ -231,19 +231,20 @@ export const LoginPage = () => {
       <MeteorCanvas />
       <div className="starry-bg-blur" />
 
-      {/* Hero — div always rendered; only h2 + p hide on mobile */}
-      <div className="relative z-10 w-full sm:w-1/2 flex flex-col items-center justify-center text-center px-6 sm:px-10 py-6 sm:py-10">
-        {/* Logo always visible on all screen sizes */}
+      {/* Hero — fully visible on ALL screen sizes, scales down on mobile */}
+      <div className="relative z-10 w-full sm:w-1/2 flex flex-col items-center justify-center text-center px-6 sm:px-10 py-4 sm:py-10">
+        {/* Logo — always visible */}
         <img
           src={assets.logo}
           alt="Logo"
-          className="max-w-[180px] sm:max-w-[300px] mb-4 sm:mb-6 drop-shadow-lg"
+          className="max-w-[160px] sm:max-w-[300px] mb-3 sm:mb-6 drop-shadow-lg"
         />
-        {/* Text hidden on mobile */}
-        <h2 className="hidden sm:block text-white text-2xl sm:text-3xl md:text-4xl font-semibold tracking-tight mb-3 leading-tight">
+        {/* Heading — visible on all sizes, smaller on mobile */}
+        <h2 className="text-white text-xl sm:text-3xl md:text-4xl font-semibold tracking-tight mb-2 sm:mb-3 leading-tight drop-shadow-lg">
           Welcome to <span className="text-red-400">ANICHAT!</span>
         </h2>
-        <p className="hidden sm:block text-sm text-gray-300 max-w-xs sm:max-w-sm leading-relaxed">
+        {/* Paragraph — visible on all sizes, smaller on mobile */}
+        <p className="text-xs sm:text-sm text-gray-200 max-w-[260px] sm:max-w-sm leading-relaxed drop-shadow">
           Join the community and let's build something extraordinary together.
         </p>
       </div>
